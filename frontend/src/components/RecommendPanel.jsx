@@ -55,11 +55,11 @@ export default function RecommendPanel({ onSelectStock }) {
                 </div>
               </div>
               <div className="rec-rets">
-                <Ret label="1일" v={b.ret1} />
-                <Ret label="1주" v={b.ret5} />
-                <Ret label="1개월" v={b.ret20} />
+                <Ret label="전날" v={b.ret1} />
+                <Ret label="1주전" v={b.ret5} />
+                <Ret label="2주전" v={b.ret10} />
+                <Ret label="한달전" v={b.ret20} />
               </div>
-              <span className="rec-score">{b.score}점</span>
             </div>
           ))}
         </div>

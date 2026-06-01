@@ -33,21 +33,34 @@ export default function RecommendSidebar() {
         <ol className="rec-side-list">
           {buys.map((b) => (
             <li key={b.code} onClick={() => navigate(`/stock/${b.code}`)}>
-              <span className="rsl-rank">{b.rank}</span>
-              <span className="rsl-name">
-                {b.region === "US" ? "🇺🇸" : "🇰🇷"} {b.name}
-              </span>
-              <span
-                className={`rsl-ret ${b.ret20 > 0 ? "up" : b.ret20 < 0 ? "down" : ""}`}
-              >
-                {b.ret20 > 0 ? "+" : ""}
-                {(b.ret20 * 100).toFixed(0)}%
-              </span>
-              <span className="rsl-score">{b.score}</span>
+              <div className="rsl-top">
+                <span className="rsl-rank">{b.rank}</span>
+                <span className="rsl-name">
+                  {b.region === "US" ? "🇺🇸" : "🇰🇷"} {b.name}
+                </span>
+              </div>
+              <div className="rsl-rets">
+                <SideRet label="전날" v={b.ret1} />
+                <SideRet label="1주" v={b.ret5} />
+                <SideRet label="2주" v={b.ret10} />
+                <SideRet label="한달" v={b.ret20} />
+              </div>
             </li>
           ))}
         </ol>
       )}
     </aside>
+  );
+}
+
+function SideRet({ label, v }) {
+  const cls = v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "";
+  return (
+    <span className={`sr ${cls}`}>
+      <span className="sr-label">{label}</span>
+      <span className="sr-val">
+        {v == null ? "-" : (v > 0 ? "+" : "") + (v * 100).toFixed(1) + "%"}
+      </span>
+    </span>
   );
 }

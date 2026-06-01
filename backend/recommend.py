@@ -80,9 +80,10 @@ def screen(df: pd.DataFrame) -> dict | None:
 
     ma20 = close.rolling(20).mean().iloc[-1]
     ma60 = close.rolling(60).mean().iloc[-1]
-    ret1 = price / close.iloc[-2] - 1
-    ret5 = price / close.iloc[-6] - 1
-    ret20 = price / close.iloc[-21] - 1
+    ret1 = price / close.iloc[-2] - 1       # 전날
+    ret5 = price / close.iloc[-6] - 1       # 일주일 전
+    ret10 = price / close.iloc[-11] - 1     # 이주일 전
+    ret20 = price / close.iloc[-21] - 1     # 한달 전
     ret60 = price / close.iloc[-61] - 1
     r = float(rsi(close, 14).iloc[-1])
     vol_surge = float(vol.iloc[-5:].mean() / (vol.iloc[-60:].mean() or 1))
@@ -127,6 +128,7 @@ def screen(df: pd.DataFrame) -> dict | None:
         "price": round(price, 2),
         "ret1": round(ret1, 4),
         "ret5": round(ret5, 4),
+        "ret10": round(ret10, 4),
         "ret20": round(ret20, 4),
         "rsi": round(r, 1),
         "reasons": reasons[:4],

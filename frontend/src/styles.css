@@ -375,19 +375,23 @@ td.clk {
 }
 .rec-side-list li {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 4px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 6px;
   border-bottom: 1px solid var(--divider);
   cursor: pointer;
   border-radius: 6px;
-  font-size: 13px;
 }
 .rec-side-list li:last-child {
   border-bottom: none;
 }
 .rec-side-list li:hover {
   background: var(--hover);
+}
+.rsl-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .rsl-rank {
   width: 18px;
@@ -403,23 +407,31 @@ td.clk {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+  font-size: 13px;
 }
-.rsl-ret {
-  font-size: 11.5px;
-  flex-shrink: 0;
+.rsl-rets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding-left: 26px;
 }
-.rsl-ret.up {
+.sr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sr-label {
+  font-size: 9.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.sr.up {
   color: var(--up);
 }
-.rsl-ret.down {
+.sr.down {
   color: var(--down);
-}
-.rsl-score {
-  font-weight: 800;
-  color: #4263eb;
-  width: 34px;
-  text-align: right;
-  flex-shrink: 0;
 }
 
 /* 오늘의 추천 */
