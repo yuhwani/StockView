@@ -25,7 +25,7 @@ body {
 }
 
 .app {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 20px 60px;
 }
@@ -307,6 +307,119 @@ td.clk {
   font-size: 24px;
   margin-left: 12px;
   vertical-align: middle;
+}
+
+/* 홈 2단 레이아웃 (왼쪽 본문 + 오른쪽 고정 추천) */
+.home-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  align-items: start; /* 스티키가 동작하려면 stretch 금지 */
+  margin-top: 18px;
+}
+.home-main {
+  min-width: 0; /* 자식 표 overflow 대비 */
+}
+@media (max-width: 880px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 오른쪽 고정 추천 사이드바 */
+.rec-sidebar {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 16px;
+}
+@media (max-width: 880px) {
+  .rec-sidebar {
+    position: static;
+    max-height: none;
+  }
+}
+.rec-side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rec-side-head h3 {
+  margin: 0;
+}
+.rec-more {
+  font-size: 12.5px;
+  color: #4263eb;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.rec-more:hover {
+  text-decoration: underline;
+}
+.rec-side-date {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: 4px 0 10px;
+}
+.rec-side-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 10px 0;
+}
+.rec-side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rec-side-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.rec-side-list li:last-child {
+  border-bottom: none;
+}
+.rec-side-list li:hover {
+  background: var(--hover);
+}
+.rsl-rank {
+  width: 18px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.rsl-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.rsl-ret {
+  font-size: 11.5px;
+  flex-shrink: 0;
+}
+.rsl-ret.up {
+  color: var(--up);
+}
+.rsl-ret.down {
+  color: var(--down);
+}
+.rsl-score {
+  font-weight: 800;
+  color: #4263eb;
+  width: 34px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 /* 오늘의 추천 */
