@@ -6,13 +6,16 @@ import SignalPanel from "../components/SignalPanel";
 import NewsPanel from "../components/NewsPanel";
 import PriceHeader from "../components/PriceHeader";
 import ForecastPanel from "../components/ForecastPanel";
+import TradePanel from "../components/TradePanel";
 import { getStock, predict, getNews, getForecast } from "../api";
 import { useWatchlist } from "../useWatchlist";
+import { useAccounts } from "../useAccounts";
 
 // 종목 상세 분석 페이지 — URL의 :code 로 데이터를 받아 분석을 보여준다.
 export default function StockPage() {
   const { code } = useParams();
   const watchlist = useWatchlist();
+  const accounts = useAccounts();
   const [stock, setStock] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [news, setNews] = useState(null);
@@ -104,6 +107,15 @@ export default function StockPage() {
       )}
 
       {stock && <PriceHeader candles={stock.candles} region={stock.region} />}
+
+      {stock && (
+        <TradePanel
+          account={accounts.active}
+          stock={stock}
+          currentPrice={stock.candles[stock.candles.length - 1].Close}
+          onTrade={(t) => accounts.addTrade(accounts.activeId, t)}
+        />
+      )}
 
       {prediction?.signal && (
         <SignalPanel

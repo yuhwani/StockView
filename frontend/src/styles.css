@@ -309,6 +309,224 @@ td.clk {
   vertical-align: middle;
 }
 
+/* 계정 바 */
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-top: 18px;
+}
+.ab-label {
+  font-weight: 700;
+}
+.ab-empty {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.ab-select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+/* 모의 매매 패널 */
+.trade-card {
+  margin-top: 18px;
+}
+.trade-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.trade-head h3 {
+  margin: 0;
+}
+.trade-acc {
+  color: var(--muted);
+  font-size: 13px;
+}
+.trade-hint {
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.trade-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+.buy-btn,
+.sell-btn {
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.buy-btn {
+  background: var(--up);
+}
+.sell-btn {
+  background: var(--down);
+}
+.trade-form {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.tf-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tf-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.tf-row input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--text);
+  font-size: 15px;
+  width: 140px;
+}
+.tf-total {
+  margin: 12px 0;
+  font-weight: 600;
+}
+.tf-buttons {
+  display: flex;
+  gap: 10px;
+}
+.trade-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0 0;
+}
+
+/* 손익(포트폴리오) 페이지 */
+.pf-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.pf-head h2 {
+  margin: 0;
+}
+.pf-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 720px) {
+  .pf-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.pf-sum {
+  text-align: center;
+}
+.pf-sum-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.pf-sum-val {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.pf-sum.big .pf-sum-val {
+  font-size: 22px;
+}
+.pf-sum-val.up,
+.pf-sum-sub.up {
+  color: var(--up);
+}
+.pf-sum-val.down,
+.pf-sum-sub.down {
+  color: var(--down);
+}
+.pf-sum-sub {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.pf-table-wrap {
+  overflow-x: auto;
+}
+.pf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.pf-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.pf-table th.num,
+.pf-table td.num {
+  text-align: right;
+}
+.pf-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--divider);
+}
+.pf-row {
+  cursor: pointer;
+}
+.pf-row:hover td {
+  background: var(--hover);
+}
+.pf-flag {
+  margin-right: 6px;
+}
+.pf-code {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 8px;
+}
+.pf-table td.up {
+  color: var(--up);
+}
+.pf-table td.down {
+  color: var(--down);
+}
+.pf-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 12px 0 0;
+}
+.del-tx {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.del-tx:hover {
+  color: var(--bad);
+}
+
 /* 홈 2단 레이아웃 (왼쪽 본문 + 오른쪽 고정 추천) */
 .home-layout {
   display: grid;

@@ -140,6 +140,24 @@ def predict(code: str, refresh: int = 0):
     return result
 
 
+@app.get("/api/prices")
+def prices(codes: str):
+    """보유 종목 평가용 현재가 일괄 조회 (codes=AAPL,005930)."""
+    out = {}
+    for code in [c.strip() for c in codes.split(",") if c.strip()]:
+        try:
+            df = data.get_ohlcv(code)
+            out[code] = {
+                "price": float(df["Close"].iloc[-1]),
+                "name": data.get_name(code),
+                "region": data.get_region(code),
+                "as_of": pd.to_datetime(df.index[-1]).strftime("%Y-%m-%d"),
+            }
+        except Exception:
+            out[code] = None
+    return {"prices": out}
+
+
 @app.get("/api/recommendations")
 def recommendations():
     """오늘의 추천 (배치가 미리 계산해 저장한 결과를 읽기만 함)."""

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Outlet, Link } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import StockPage from "./pages/StockPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
+import PortfolioPage from "./pages/PortfolioPage";
 
 // 공통 레이아웃 (헤더/푸터) — 로고를 누르면 홈으로
 function Layout() {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/stock/:code" element={<StockPage />} />
           <Route path="/recommendations" element={<RecommendationsPage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
