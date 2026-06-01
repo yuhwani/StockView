@@ -552,6 +552,33 @@ td.clk {
   padding-top: 12px;
 }
 
+/* 현재 주가 */
+.price-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.ph-price {
+  font-size: 32px;
+  font-weight: 800;
+}
+.ph-change {
+  font-size: 16px;
+  font-weight: 700;
+}
+.ph-change.up {
+  color: var(--up);
+}
+.ph-change.down {
+  color: var(--down);
+}
+.ph-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
 /* 기간별 등락률 */
 .returns-wrap {
   margin-top: 14px;

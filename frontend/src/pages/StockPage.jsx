@@ -4,7 +4,7 @@ import PriceChart from "../components/PriceChart";
 import PredictionPanel from "../components/PredictionPanel";
 import SignalPanel from "../components/SignalPanel";
 import NewsPanel from "../components/NewsPanel";
-import ReturnsRow from "../components/ReturnsRow";
+import PriceHeader from "../components/PriceHeader";
 import ForecastPanel from "../components/ForecastPanel";
 import { getStock, predict, getNews, getForecast } from "../api";
 import { useWatchlist } from "../useWatchlist";
@@ -103,7 +103,7 @@ export default function StockPage() {
         </div>
       )}
 
-      {stock && <ReturnsRow candles={stock.candles} />}
+      {stock && <PriceHeader candles={stock.candles} region={stock.region} />}
 
       {prediction?.signal && (
         <SignalPanel
