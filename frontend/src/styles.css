@@ -553,11 +553,13 @@ td.clk {
 }
 
 /* 현재 주가 */
+.price-block {
+  margin-top: 14px;
+}
 .price-header {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-top: 14px;
   flex-wrap: wrap;
 }
 .ph-price {
@@ -576,6 +578,34 @@ td.clk {
 }
 .ph-sub {
   font-size: 12.5px;
+  color: var(--muted);
+}
+.past-prices {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.pp-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 14px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 110px;
+}
+.pp-label {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.pp-price {
+  font-size: 16px;
+  font-weight: 700;
+}
+.pp-date {
+  font-size: 10.5px;
   color: var(--muted);
 }
 
