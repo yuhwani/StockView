@@ -7,6 +7,7 @@ SHELL := bash
 
 PY := ./venv/Scripts/python.exe
 
+# 기본 명령: 그냥 `make` 만 치면 아래 dev 타깃이 실행된다.
 ## dev: 백엔드(:8000) + 프론트엔드(:5173) 동시 실행 (Ctrl-C로 둘 다 종료)
 dev:
 	@echo "▶ 백엔드 :8000  +  프론트엔드 :5173  동시 실행  (종료: Ctrl-C)"
@@ -40,7 +41,7 @@ clean:
 ## help: 사용 가능한 명령 목록
 help:
 	@echo "사용법:"
-	@echo "  make           백엔드+프론트 동시 실행 (= make dev)"
+	@echo "  make           백엔드+프론트 동시 실행"
 	@echo "  make down      실행 중인 서버 종료 (:8000, :5173)"
 	@echo "  make backend   백엔드만 (자동 리로드)"
 	@echo "  make frontend  프론트만"
