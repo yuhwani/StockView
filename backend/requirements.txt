@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+finance-datareader
+scikit-learn
+pandas
+numpy

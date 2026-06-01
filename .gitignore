@@ -1,0 +1,25 @@
+# ── Python / 백엔드 ──────────────────────────────
+backend/venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.env
+.env.*
+
+# ── Node / 프론트엔드 ────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ── 에디터 / OS ──────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
