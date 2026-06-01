@@ -101,7 +101,7 @@ export default function PortfolioPage() {
       {/* 보유 종목 */}
       {pf.holdings.length === 0 ? (
         <div className="card">
-          아직 거래가 없어요. 종목을 검색해 들어가서 매수해보세요.
+          아직 매매 기록이 없어요. 종목을 검색해 들어가서 매수 기록을 추가해보세요.
         </div>
       ) : (
         <div className="card">
@@ -153,7 +153,7 @@ export default function PortfolioPage() {
             </table>
           </div>
           <p className="pf-note">
-            ⚠️ 모의 매매 기록 기준입니다. 한국·미국이 섞이면 합계는 통화를 구분하지
+            직접 입력한 매매 기록 기준입니다. 한국·미국이 섞이면 합계는 통화를 구분하지
             않은 단순 합이라 참고용이에요. 행을 누르면 종목 상세로 이동합니다.
           </p>
         </div>

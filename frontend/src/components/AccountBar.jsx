@@ -14,7 +14,7 @@ export default function AccountBar({ accounts, activeId, onSelect, onAdd }) {
       <span className="ab-label">📁 내 계좌</span>
 
       {accounts.length === 0 ? (
-        <span className="ab-empty">계정을 추가해 모의 매매를 시작하세요.</span>
+        <span className="ab-empty">계정을 추가해 매매 기록을 시작하세요.</span>
       ) : (
         <select
           className="ab-select"

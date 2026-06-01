@@ -7,18 +7,21 @@ function fmt(v, region) {
     : Math.round(v).toLocaleString() + "원";
 }
 
-// 종목 상세에서 현재 계정으로 모의 매수/매도
+const today = () => new Date().toISOString().slice(0, 10);
+
+// 종목 상세에서 현재 계정에 실제 매매 내역을 기록
 export default function TradePanel({ account, stock, currentPrice, onTrade }) {
   const [side, setSide] = useState(null); // 'buy' | 'sell' | null
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState(currentPrice ?? "");
+  const [date, setDate] = useState(today());
 
   if (!account) {
     return (
       <div className="card trade-card">
-        <h3>💰 모의 매매</h3>
+        <h3>💰 매매 기록</h3>
         <p className="trade-hint">
-          매매하려면 홈에서 <b>계정을 추가/선택</b>하세요.
+          매매를 기록하려면 홈에서 <b>계정을 추가/선택</b>하세요.
         </p>
       </div>
     );
@@ -28,6 +31,7 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
     setSide(s);
     setPrice(currentPrice ?? "");
     setQty("");
+    setDate(today());
   };
 
   const confirm = () => {
@@ -41,7 +45,7 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
       side,
       qty: q,
       price: p,
-      date: new Date().toISOString().slice(0, 10),
+      date: date || today(),
     });
     setSide(null);
     setQty("");
@@ -50,7 +54,7 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
   return (
     <div className="card trade-card">
       <div className="trade-head">
-        <h3>💰 모의 매매</h3>
+        <h3>💰 매매 기록</h3>
         <span className="trade-acc">{account.name}</span>
       </div>
 
@@ -78,7 +82,7 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
               />
             </label>
             <label>
-              {side === "buy" ? "매수가" : "매도가"}
+              {side === "buy" ? "매수 단가" : "매도 단가"}
               <input
                 type="number"
                 min="0"
@@ -86,9 +90,18 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
                 onChange={(e) => setPrice(e.target.value)}
               />
             </label>
+            <label>
+              체결일
+              <input
+                type="date"
+                value={date}
+                max={today()}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
           </div>
           <div className="tf-total">
-            예상 금액: {fmt((Number(qty) || 0) * (Number(price) || 0), stock.region)}
+            거래 금액: {fmt((Number(qty) || 0) * (Number(price) || 0), stock.region)}
           </div>
           <div className="tf-buttons">
             <button
@@ -105,7 +118,8 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
       )}
 
       <p className="trade-note">
-        실제 주문이 아닌 <b>모의(연습) 기록</b>입니다. 손익은 ‘내 계좌’에서 확인하세요.
+        실제로 체결한 매매를 직접 입력하는 <b>기록장</b>입니다 (주문은 증권사 앱에서).
+        단가·체결일을 실제 거래대로 넣으면 손익이 정확해져요. 손익은 ‘내 계좌’에서 확인.
       </p>
     </div>
   );
