@@ -35,6 +35,106 @@ body {
   color: inherit;
   display: inline-block;
 }
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.header-acc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ha-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* 계정 선택 화면 (넷플릭스식) */
+.accounts-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 80px 20px;
+  text-align: center;
+}
+.ap-logo {
+  font-size: 30px;
+  margin: 0 0 8px;
+}
+.ap-title {
+  font-size: 22px;
+  color: var(--muted);
+  margin: 0 0 40px;
+}
+.acc-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 28px;
+}
+.acc-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.acc-avatar {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 38px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.acc-avatar:hover {
+  border-color: #4263eb;
+  transform: translateY(-3px);
+}
+.acc-avatar.add {
+  color: var(--muted);
+  border-style: dashed;
+  font-size: 44px;
+}
+.acc-del {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bad);
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.acc-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.ap-edit {
+  margin-top: 40px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 9px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.ap-edit:hover {
+  border-color: #4263eb;
+  color: var(--text);
+}
 header h1 {
   margin: 0;
   font-size: 28px;

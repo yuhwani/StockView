@@ -1,19 +1,48 @@
-import { BrowserRouter, Routes, Route, Outlet, Link } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Outlet,
+  Link,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import StockPage from "./pages/StockPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import PortfolioPage from "./pages/PortfolioPage";
+import AccountsPage from "./pages/AccountsPage";
+import { AccountsProvider, useAccounts } from "./useAccounts";
 
-// 공통 레이아웃 (헤더/푸터) — 로고를 누르면 홈으로
-function Layout() {
+// 계정이 선택돼야 들어갈 수 있는 레이아웃 (없으면 계정 선택 화면으로)
+function GatedLayout() {
+  const { active } = useAccounts();
+  const navigate = useNavigate();
+
+  if (!active) return <Navigate to="/accounts" replace />;
+
   return (
     <div className="app">
       <header>
-        <Link to="/" className="logo-link">
-          <h1>
-            📈 StockView <span>투자 판단 도우미</span>
-          </h1>
-        </Link>
+        <div className="header-top">
+          <Link to="/" className="logo-link">
+            <h1>
+              📈 StockView <span>투자 판단 도우미</span>
+            </h1>
+          </Link>
+          <div className="header-acc">
+            <span className="ha-name">📁 {active.name}</span>
+            <Link to="/portfolio" className="mini-btn ghost">
+              손익
+            </Link>
+            <button
+              className="mini-btn ghost"
+              onClick={() => navigate("/accounts")}
+            >
+              계정 전환
+            </button>
+          </div>
+        </div>
         <p className="sub">
           한국·미국 주식을 ML·기술적 지표로 분석해 매수·관망·매도 판단을 돕는 도구
         </p>
@@ -30,15 +59,18 @@ function Layout() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/stock/:code" element={<StockPage />} />
-          <Route path="/recommendations" element={<RecommendationsPage />} />
-          <Route path="/portfolio" element={<PortfolioPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AccountsProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/accounts" element={<AccountsPage />} />
+          <Route element={<GatedLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/stock/:code" element={<StockPage />} />
+            <Route path="/recommendations" element={<RecommendationsPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AccountsProvider>
   );
 }
