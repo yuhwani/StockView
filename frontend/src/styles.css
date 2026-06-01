@@ -553,11 +553,23 @@ td.clk {
 }
 
 /* 기간별 등락률 */
+.returns-wrap {
+  margin-top: 14px;
+}
+.returns-cap {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.returns-cap-sub {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
 .returns-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  margin-top: 14px;
 }
 .ret-cell {
   background: var(--card);
