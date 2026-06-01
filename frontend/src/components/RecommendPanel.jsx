@@ -54,15 +54,12 @@ export default function RecommendPanel({ onSelectStock }) {
                   {(b.reasons || []).slice(0, 2).join(" · ")}
                 </div>
               </div>
-              <div className="rec-metrics">
-                <span className="rec-score">{b.score}점</span>
-                <span
-                  className={`rec-ret ${b.ret20 > 0 ? "up" : b.ret20 < 0 ? "down" : ""}`}
-                >
-                  20일 {b.ret20 > 0 ? "+" : ""}
-                  {(b.ret20 * 100).toFixed(1)}%
-                </span>
+              <div className="rec-rets">
+                <Ret label="1일" v={b.ret1} />
+                <Ret label="1주" v={b.ret5} />
+                <Ret label="1개월" v={b.ret20} />
               </div>
+              <span className="rec-score">{b.score}점</span>
             </div>
           ))}
         </div>
@@ -73,5 +70,15 @@ export default function RecommendPanel({ onSelectStock }) {
         클릭하면 ML·펀더멘털·뉴스까지 종합한 상세 판단을 볼 수 있어요. 참고용입니다.
       </p>
     </div>
+  );
+}
+
+function Ret({ label, v }) {
+  const cls = v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "";
+  return (
+    <span className={`rec-ret ${cls}`}>
+      <span className="rr-label">{label}</span>
+      {v == null ? "-" : (v > 0 ? "+" : "") + (v * 100).toFixed(1) + "%"}
+    </span>
   );
 }

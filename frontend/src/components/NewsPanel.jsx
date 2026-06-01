@@ -1,33 +1,10 @@
 // 최근 뉴스 헤드라인 패널 (실제 기사 — AI 요약 없음)
-// 최근 등락률을 함께 보여줘 "왜 움직였나"를 사용자가 기사로 직접 확인하게 한다.
 
-function recentChange(candles, days) {
-  if (!candles || candles.length <= days) return null;
-  const last = candles[candles.length - 1].Close;
-  const prev = candles[candles.length - 1 - days].Close;
-  return (last / prev - 1) * 100;
-}
-
-function ChangeBadge({ label, value }) {
-  if (value == null) return null;
-  const cls = value > 0 ? "up" : value < 0 ? "down" : "";
-  return (
-    <span className={`chg-badge ${cls}`}>
-      {label} {value > 0 ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
-  );
-}
-
-export default function NewsPanel({ news, candles, loading }) {
+export default function NewsPanel({ news, loading }) {
   return (
     <div className="card news-card">
       <div className="news-head">
         <h3>📰 최근 뉴스</h3>
-        <div className="chg-row">
-          <ChangeBadge label="1일" value={recentChange(candles, 1)} />
-          <ChangeBadge label="5일" value={recentChange(candles, 5)} />
-        </div>
       </div>
 
       {loading ? (

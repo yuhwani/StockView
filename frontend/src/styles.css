@@ -497,24 +497,39 @@ td.clk {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rec-metrics {
+.rec-rets {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-.rec-score {
-  font-weight: 800;
-  color: #4263eb;
+  gap: 12px;
 }
 .rec-ret {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-size: 12.5px;
+  font-weight: 600;
+  min-width: 48px;
+}
+.rr-label {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
 }
 .rec-ret.up {
   color: var(--up);
 }
 .rec-ret.down {
   color: var(--down);
+}
+.rec-score {
+  font-weight: 800;
+  color: #4263eb;
+  margin-left: 14px;
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .rec-rets {
+    display: none; /* 좁은 화면에선 점수만 */
+  }
 }
 .rec-note {
   font-size: 12px;
@@ -523,6 +538,38 @@ td.clk {
   margin: 14px 0 0;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+/* 기간별 등락률 */
+.returns-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.ret-cell {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.ret-label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.ret-val {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+.ret-cell.up .ret-val {
+  color: var(--up);
+}
+.ret-cell.down .ret-val {
+  color: var(--down);
 }
 
 /* 투자 판단 신호 패널 */

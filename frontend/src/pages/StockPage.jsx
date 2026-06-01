@@ -4,6 +4,7 @@ import PriceChart from "../components/PriceChart";
 import PredictionPanel from "../components/PredictionPanel";
 import SignalPanel from "../components/SignalPanel";
 import NewsPanel from "../components/NewsPanel";
+import ReturnsRow from "../components/ReturnsRow";
 import { getStock, predict, getNews } from "../api";
 import { useWatchlist } from "../useWatchlist";
 
@@ -90,6 +91,8 @@ export default function StockPage() {
           </div>
         </div>
       )}
+
+      {stock && <ReturnsRow candles={stock.candles} />}
 
       {prediction?.signal && (
         <SignalPanel
