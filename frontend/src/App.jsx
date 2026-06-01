@@ -50,10 +50,10 @@ export default function App() {
     <div className="app">
       <header>
         <h1>
-          📈 StockView <span>주가 예측 실험실</span>
+          📈 StockView <span>투자 판단 도우미</span>
         </h1>
         <p className="sub">
-          한국·미국 주식을 머신러닝으로 분석하는 학습용 도구
+          한국·미국 주식을 ML·기술적 지표로 분석해 매수·관망·매도 판단을 돕는 도구
         </p>
       </header>
 
@@ -114,7 +114,7 @@ export default function App() {
       )}
 
       <footer>
-        교육·연구 목적의 데모입니다. 투자 판단의 근거로 사용하지 마세요.
+        신호는 참고용입니다. 예측은 틀릴 수 있으며, 최종 투자 판단과 책임은 본인에게 있습니다.
       </footer>
     </div>
   );
