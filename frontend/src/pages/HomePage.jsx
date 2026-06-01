@@ -15,12 +15,6 @@ export default function HomePage() {
       <div className="home-main">
         <SearchBar onSelect={go} />
         <StockLists onSelectStock={go} watchlist={watchlist} />
-        <div className="empty">
-          <p>
-            종목을 검색하거나 위 목록에서 골라보세요. 🇰🇷 <b>삼성전자</b>,{" "}
-            <b>005930</b> · 🇺🇸 <b>AAPL</b>, <b>Tesla</b>, <b>NVDA</b>
-          </p>
-        </div>
       </div>
 
       <RecommendSidebar />

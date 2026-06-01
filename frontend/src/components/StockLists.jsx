@@ -145,7 +145,7 @@ export default function StockLists({ onSelectStock, watchlist }) {
                     <th className="rank">#</th>
                     <th>종목</th>
                     {hasMetrics && <th className="num">현재가</th>}
-                    {hasMetrics && <th className="num">등락률</th>}
+                    {hasMetrics && <th className="num">전날대비</th>}
                     {hasMetrics && <th className="num">시총</th>}
                     <th className="num">예측</th>
                   </tr>
