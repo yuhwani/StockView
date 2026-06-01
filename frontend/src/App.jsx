@@ -3,6 +3,7 @@ import SearchBar from "./components/SearchBar";
 import StockLists from "./components/StockLists";
 import PriceChart from "./components/PriceChart";
 import PredictionPanel from "./components/PredictionPanel";
+import SignalPanel from "./components/SignalPanel";
 import NewsPanel from "./components/NewsPanel";
 import { getStock, predict, getNews } from "./api";
 import { useWatchlist } from "./useWatchlist";
@@ -80,6 +81,8 @@ export default function App() {
           </h2>
         </div>
       )}
+
+      {prediction?.signal && <SignalPanel signal={prediction.signal} />}
 
       <div className="grid">
         {stock && <PriceChart candles={stock.candles} region={stock.region} />}

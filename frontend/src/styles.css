@@ -294,6 +294,141 @@ td.clk {
   vertical-align: middle;
 }
 
+/* 투자 판단 신호 패널 */
+:root {
+  --sig-buy: #2f9e44;
+  --sig-sell: #e03131;
+  --sig-hold: #f08c00;
+}
+.signal-card {
+  margin-top: 18px;
+  border-left: 6px solid var(--border);
+}
+.signal-card.sig-buy,
+.signal-card.sig-buy_weak {
+  border-left-color: var(--sig-buy);
+}
+.signal-card.sig-sell,
+.signal-card.sig-sell_weak {
+  border-left-color: var(--sig-sell);
+}
+.signal-card.sig-hold {
+  border-left-color: var(--sig-hold);
+}
+.sig-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sig-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.sig-icon {
+  font-size: 30px;
+  line-height: 1;
+}
+.sig-buy .sig-icon,
+.sig-buy_weak .sig-icon {
+  color: var(--sig-buy);
+}
+.sig-sell .sig-icon,
+.sig-sell_weak .sig-icon {
+  color: var(--sig-sell);
+}
+.sig-hold .sig-icon {
+  color: var(--sig-hold);
+}
+.sig-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sig-value {
+  font-size: 28px;
+  font-weight: 800;
+}
+.sig-buy .sig-value,
+.sig-buy_weak .sig-value {
+  color: var(--sig-buy);
+}
+.sig-sell .sig-value,
+.sig-sell_weak .sig-value {
+  color: var(--sig-sell);
+}
+.sig-hold .sig-value {
+  color: var(--sig-hold);
+}
+.sig-conf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 160px;
+}
+.sig-conf-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sig-conf-bar {
+  width: 160px;
+  height: 8px;
+  background: var(--inset);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sig-conf-bar > div {
+  height: 100%;
+  background: #4263eb;
+}
+.sig-conf-num {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sig-summary {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 14px 0 10px;
+}
+.sig-reasons {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.sig-reasons li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+}
+.sig-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sig-caveat {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: rgba(240, 140, 0, 0.1);
+  border: 1px solid rgba(240, 140, 0, 0.4);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sig-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 14px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* 뉴스 패널 */
 .news-card {
   margin-top: 18px;
