@@ -3,7 +3,7 @@
 SHELL := bash
 
 .DEFAULT_GOAL := dev
-.PHONY: dev backend frontend install help clean
+.PHONY: dev down backend frontend install help clean
 
 PY := ./venv/Scripts/python.exe
 
@@ -14,6 +14,11 @@ dev:
 	( cd backend  && $(PY) -m uvicorn main:app --port 8000 --host 127.0.0.1 ) & \
 	( cd frontend && npm run dev ) & \
 	wait
+
+## down: 실행 중인 백엔드(:8000)·프론트(:5173) 종료 (포트 점유 프로세스 kill)
+down:
+	@echo "▶ 서버 종료 중  (:8000, :5173)"
+	@powershell -NoProfile -Command 'foreach ($$p in 8000,5173) { $$ids = Get-NetTCPConnection -LocalPort $$p -State Listen -ErrorAction SilentlyContinue | Select-Object -Expand OwningProcess -Unique; if ($$ids) { $$ids | ForEach-Object { Stop-Process -Id $$_ -Force -ErrorAction SilentlyContinue; Write-Host "  port $$p -> killed PID $$_" } } else { Write-Host "  port $$p : not running" } }'
 
 ## backend: 백엔드만 실행 (코드 변경 시 자동 리로드)
 backend:
@@ -36,6 +41,7 @@ clean:
 help:
 	@echo "사용법:"
 	@echo "  make           백엔드+프론트 동시 실행 (= make dev)"
+	@echo "  make down      실행 중인 서버 종료 (:8000, :5173)"
 	@echo "  make backend   백엔드만 (자동 리로드)"
 	@echo "  make frontend  프론트만"
 	@echo "  make install   의존성 설치 (최초 1회)"
