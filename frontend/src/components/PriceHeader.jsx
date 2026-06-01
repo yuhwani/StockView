@@ -21,6 +21,8 @@ const PAST = [
   { label: "1일 전", days: 1 },
   { label: "7일 전", days: 7 },
   { label: "한달 전", days: 30 },
+  { label: "3개월 전", days: 90 },
+  { label: "1년 전", days: 365 },
 ];
 
 export default function PriceHeader({ candles, region }) {
