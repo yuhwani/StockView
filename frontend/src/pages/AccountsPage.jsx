@@ -10,14 +10,14 @@ export default function AccountsPage() {
 
   const pick = (id) => {
     selectAccount(id);
-    navigate("/");
+    navigate("/home");
   };
 
   const add = () => {
     const name = window.prompt("계정 이름을 입력하세요", "내 계좌");
     if (name != null) {
       addAccount(name);
-      navigate("/");
+      navigate("/home");
     }
   };
 

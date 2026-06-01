@@ -69,7 +69,7 @@ export default function StockPage() {
 
   return (
     <div>
-      <Link to="/" className="back-link">
+      <Link to="/home" className="back-link">
         ← 홈으로
       </Link>
 

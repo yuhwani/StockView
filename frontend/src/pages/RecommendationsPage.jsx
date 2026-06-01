@@ -6,7 +6,7 @@ export default function RecommendationsPage() {
   const navigate = useNavigate();
   return (
     <div>
-      <Link to="/" className="back-link">
+      <Link to="/home" className="back-link">
         ← 홈으로
       </Link>
       <RecommendPanel onSelectStock={(item) => navigate(`/stock/${item.Code}`)} />

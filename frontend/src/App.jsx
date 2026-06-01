@@ -19,13 +19,13 @@ function GatedLayout() {
   const { active } = useAccounts();
   const navigate = useNavigate();
 
-  if (!active) return <Navigate to="/accounts" replace />;
+  if (!active) return <Navigate to="/" replace />;
 
   return (
     <div className="app">
       <header>
         <div className="header-top">
-          <Link to="/" className="logo-link">
+          <Link to="/home" className="logo-link">
             <h1>
               📈 StockView <span>투자 판단 도우미</span>
             </h1>
@@ -37,7 +37,7 @@ function GatedLayout() {
             </Link>
             <button
               className="mini-btn ghost"
-              onClick={() => navigate("/accounts")}
+              onClick={() => navigate("/")}
             >
               계정 전환
             </button>
@@ -62,9 +62,9 @@ export default function App() {
     <AccountsProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/" element={<AccountsPage />} />
           <Route element={<GatedLayout />}>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/stock/:code" element={<StockPage />} />
             <Route path="/recommendations" element={<RecommendationsPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />

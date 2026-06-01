@@ -40,7 +40,7 @@ export default function PortfolioPage() {
   if (!acc.active) {
     return (
       <div>
-        <Link to="/" className="back-link">
+        <Link to="/home" className="back-link">
           ← 홈으로
         </Link>
         <div className="card">
@@ -56,7 +56,7 @@ export default function PortfolioPage() {
 
   return (
     <div>
-      <Link to="/" className="back-link">
+      <Link to="/home" className="back-link">
         ← 홈으로
       </Link>
 
