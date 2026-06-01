@@ -22,6 +22,8 @@ export const preview = (code) => get(`/api/preview/${code}`);
 
 export const getNews = (code, refresh) => get(`/api/news/${code}${r(refresh)}`);
 
+export const getRecommendations = () => get(`/api/recommendations`);
+
 export const getLists = () => get(`/api/lists`);
 
 export const getList = (id, limit = 100) =>

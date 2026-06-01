@@ -3,6 +3,9 @@ backend/venv/
 venv/
 __pycache__/
 *.py[cod]
+
+# 배치가 생성하는 추천 결과 (재생성 가능)
+backend/recommendations.json
 *.egg-info/
 .pytest_cache/
 .env

@@ -13,6 +13,10 @@ dev:
 down:
 	python run.py down
 
+## recommend: 오늘의 추천 배치 즉시 실행 (recommendations.json 갱신)
+recommend:
+	cd backend && venv\Scripts\python.exe recommend.py
+
 ## backend: 백엔드만 실행 (코드 변경 시 자동 리로드)
 backend:
 	cd backend && venv\Scripts\python.exe -m uvicorn main:app --port 8000 --host 127.0.0.1 --reload

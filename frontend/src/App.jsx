@@ -5,6 +5,7 @@ import PriceChart from "./components/PriceChart";
 import PredictionPanel from "./components/PredictionPanel";
 import SignalPanel from "./components/SignalPanel";
 import NewsPanel from "./components/NewsPanel";
+import RecommendPanel from "./components/RecommendPanel";
 import { getStock, predict, getNews } from "./api";
 import { useWatchlist } from "./useWatchlist";
 
@@ -121,12 +122,15 @@ export default function App() {
       )}
 
       {!stock && !loading && (
-        <div className="empty">
-          <p>
-            위에서 종목을 검색해 보세요. 🇰🇷 <b>삼성전자</b>, <b>005930</b> ·
-            🇺🇸 <b>AAPL</b>, <b>Tesla</b>, <b>NVDA</b>
-          </p>
-        </div>
+        <>
+          <RecommendPanel onSelectStock={handleSelect} />
+          <div className="empty">
+            <p>
+              위에서 종목을 검색해 보세요. 🇰🇷 <b>삼성전자</b>, <b>005930</b> ·
+              🇺🇸 <b>AAPL</b>, <b>Tesla</b>, <b>NVDA</b>
+            </p>
+          </div>
+        </>
       )}
 
       <footer>

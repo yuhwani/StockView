@@ -7,6 +7,9 @@
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -122,6 +125,16 @@ def predict(code: str, refresh: int = 0):
         "원리적으로 50%대에 머무릅니다. 학습/연구 목적으로만 사용하세요."
     )
     return result
+
+
+@app.get("/api/recommendations")
+def recommendations():
+    """오늘의 추천 (배치가 미리 계산해 저장한 결과를 읽기만 함)."""
+    path = Path(__file__).resolve().parent / "recommendations.json"
+    if not path.exists():
+        return {"date": None, "buys": [],
+                "message": "아직 추천이 생성되지 않았습니다. (배치 미실행)"}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.get("/")
