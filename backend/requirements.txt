@@ -4,3 +4,4 @@ finance-datareader
 scikit-learn
 pandas
 numpy
+requests

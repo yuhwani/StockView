@@ -13,9 +13,17 @@ function dotColor(dir) {
   return dir === "up" ? "var(--sig-buy)" : dir === "down" ? "var(--sig-sell)" : "var(--muted)";
 }
 
-export default function SignalPanel({ signal }) {
+function price(v, region) {
+  if (v == null) return "-";
+  return region === "US"
+    ? "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : Math.round(v).toLocaleString() + "원";
+}
+
+export default function SignalPanel({ signal, levels, valuation, region }) {
   if (!signal) return null;
   const { action, tone, summary, confidence, reasons, caveat, score } = signal;
+  const v = valuation || {};
 
   return (
     <div className={`card signal-card sig-${tone}`}>
@@ -47,12 +55,57 @@ export default function SignalPanel({ signal }) {
         ))}
       </ul>
 
+      {/* 손절·목표가 (변동성 기반) */}
+      {levels && (
+        <div className="sig-levels">
+          <div className="lv stop">
+            <span className="lv-k">손절가</span>
+            <span className="lv-v">{price(levels.stop_loss, region)}</span>
+          </div>
+          <div className="lv now">
+            <span className="lv-k">현재가</span>
+            <span className="lv-v">{price(levels.price, region)}</span>
+          </div>
+          <div className="lv target">
+            <span className="lv-k">목표가</span>
+            <span className="lv-v">{price(levels.target, region)}</span>
+          </div>
+          <div className="lv rr">
+            <span className="lv-k">손익비</span>
+            <span className="lv-v">{levels.rr}:1</span>
+          </div>
+        </div>
+      )}
+
+      {/* 밸류에이션·수급 팩트 */}
+      <div className="sig-facts">
+        {v.per != null && <Fact k="PER" val={v.per.toFixed(1)} />}
+        {v.pbr != null && <Fact k="PBR" val={v.pbr.toFixed(2)} />}
+        {v.dividend_yield != null && region !== "US" && (
+          <Fact k="배당수익률" val={v.dividend_yield + "%"} />
+        )}
+        {v.foreign_rate != null && <Fact k="외국인비율" val={v.foreign_rate + "%"} />}
+        {v.analyst_target != null && (
+          <Fact k="목표주가" val={price(v.analyst_target, region)} />
+        )}
+        {v.analyst_rating && <Fact k="애널 의견" val={v.analyst_rating} />}
+      </div>
+
       {caveat && <div className="sig-caveat">⚠️ {caveat}</div>}
 
       <p className="sig-note">
         ML 예측 + 추세·RSI·모멘텀을 종합한 <b>참고용 신호</b>입니다 (종합점수 {score}).
         예측은 틀릴 수 있으니 최종 결정은 본인이 하세요.
       </p>
+    </div>
+  );
+}
+
+function Fact({ k, val }) {
+  return (
+    <div className="fact">
+      <span className="fact-k">{k}</span>
+      <span className="fact-v">{val}</span>
     </div>
   );
 }

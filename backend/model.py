@@ -39,12 +39,14 @@ def quick_predict(df: pd.DataFrame) -> dict:
     }
 
 
-def investment_signal(row, proba_up: float, edge: float) -> dict:
-    """ML 예측 + 기술적 지표를 종합해 '지금 살까/뺄까' 행동 신호를 만든다.
+def investment_signal(row, proba_up: float, edge: float, extras: dict | None = None) -> dict:
+    """ML 예측 + 기술적 지표 + 펀더멘털·수급·뉴스를 종합해 행동 신호를 만든다.
 
     여러 신호에 점수를 매겨 합산하는 투명한 방식. 각 근거를 사람이 읽을 수 있게
-    함께 돌려준다. row 는 마지막 거래일의 피처(Series).
+    함께 돌려준다. row 는 마지막 거래일의 피처(Series),
+    extras 는 {valuation, supply, sentiment, region} (없으면 가격 기반만).
     """
+    extras = extras or {}
     score = 0.0
     reasons = []
 
@@ -85,20 +87,76 @@ def investment_signal(row, proba_up: float, edge: float) -> dict:
     elif r5 < -0.03:
         score -= 0.5; reasons.append(("down", f"최근 5일 {r5:.1%} 하락 모멘텀"))
 
+    val = extras.get("valuation") or {}
+    sup = extras.get("supply") or {}
+    sen = extras.get("sentiment") or {}
+
+    # 5) 밸류에이션 (PER / PBR)
+    per, pbr = val.get("per"), val.get("pbr")
+    if per and per > 0:
+        if per < 10:
+            score += 0.5; reasons.append(("up", f"PER {per:.1f} → 저평가 매력"))
+        elif per > 40:
+            score -= 0.5; reasons.append(("down", f"PER {per:.1f} → 고평가 부담"))
+    if pbr and pbr > 0:
+        if pbr < 1:
+            score += 0.5; reasons.append(("up", f"PBR {pbr:.2f} → 자산가치 이하"))
+        elif pbr > 5:
+            score -= 0.3; reasons.append(("down", f"PBR {pbr:.1f} → 고PBR"))
+
+    # 6) 수급 (외국인·기관 순매수, 한국)
+    fn, inn = sup.get("foreign_net"), sup.get("inst_net")
+    if fn is not None and inn is not None:
+        if fn > 0 and inn > 0:
+            score += 1; reasons.append(("up", "최근 외국인·기관 동반 순매수 (수급 양호)"))
+        elif fn < 0 and inn < 0:
+            score -= 1; reasons.append(("down", "최근 외국인·기관 동반 순매도 (수급 약화)"))
+        elif fn > 0 or inn > 0:
+            who = "외국인" if fn > 0 else "기관"
+            score += 0.5; reasons.append(("up", f"최근 {who} 순매수"))
+
+    # 7) 뉴스 감성
+    sscore = sen.get("score")
+    if sscore is not None and sen.get("total"):
+        if sscore >= 0.3:
+            score += 1; reasons.append(("up", f"최근 뉴스 긍정 우세 (감성 {sscore:+.2f})"))
+        elif sscore >= 0.15:
+            score += 0.5; reasons.append(("up", f"뉴스 다소 긍정 (감성 {sscore:+.2f})"))
+        elif sscore <= -0.3:
+            score -= 1; reasons.append(("down", f"최근 뉴스 부정 우세 (감성 {sscore:+.2f})"))
+        elif sscore <= -0.15:
+            score -= 0.5; reasons.append(("down", f"뉴스 다소 부정 (감성 {sscore:+.2f})"))
+
+    # 8) 재료(이벤트): 자사주매입·증설·최초기술 등
+    good_bonus = 0.0
+    for ev in sen.get("events", []):
+        if ev["tone"] == "good" and good_bonus < 1.0:
+            good_bonus += 0.5; reasons.append(("up", f"재료 감지: {ev['label']}"))
+        elif ev["tone"] == "bad":
+            score -= 1; reasons.append(("down", f"악재 감지: {ev['label']}"))
+    score += good_bonus
+
+    # 9) 애널리스트 의견 (미국)
+    rating = (val.get("analyst_rating") or "").lower()
+    if "buy" in rating:
+        score += 0.5; reasons.append(("up", f"애널리스트 컨센서스: {val['analyst_rating']}"))
+    elif "sell" in rating:
+        score -= 0.5; reasons.append(("down", f"애널리스트 컨센서스: {val['analyst_rating']}"))
+
     # 점수 → 행동
-    if score >= 2.5:
+    if score >= 3:
         action, tone, summary = "매수 우위", "buy", "여러 신호가 매수에 우호적입니다."
     elif score >= 1:
         action, tone, summary = "약한 매수", "buy_weak", "조심스럽게 매수에 무게가 실립니다."
     elif score > -1:
         action, tone, summary = "관망", "hold", "방향이 뚜렷하지 않습니다. 지켜보세요."
-    elif score > -2.5:
+    elif score > -3:
         action, tone, summary = "약한 매도", "sell_weak", "비중을 줄이는 것을 고려해볼 만합니다."
     else:
         action, tone, summary = "매도 우위", "sell", "여러 신호가 매도(비중 축소)에 무게를 둡니다."
 
     # 신뢰도: 점수 크기 + 모델의 실제 우위(edge) 반영
-    confidence = min(abs(score) / 5.0, 1.0)
+    confidence = min(abs(score) / 6.0, 1.0)
     caveat = None
     if edge <= 0:
         confidence *= 0.6
@@ -116,7 +174,31 @@ def investment_signal(row, proba_up: float, edge: float) -> dict:
     }
 
 
-def train_and_evaluate(df: pd.DataFrame) -> dict:
+def stop_target(df: pd.DataFrame) -> dict:
+    """변동성(ATR) 기반 손절가·목표가 제안.
+
+    ATR = 최근 14일 평균 진폭. 손절 = 현재가 - 1.5×ATR, 목표 = 현재가 + 2×ATR.
+    (손익비 약 1.3:1). 참고용 기준선이며 절대적 매매가가 아니다.
+    """
+    high, low, close = df["High"].astype(float), df["Low"].astype(float), df["Close"].astype(float)
+    prev = close.shift(1)
+    tr = pd.concat([high - low, (high - prev).abs(), (low - prev).abs()], axis=1).max(axis=1)
+    atr = float(tr.rolling(14).mean().iloc[-1])
+    price = float(close.iloc[-1])
+
+    return {
+        "price": round(price, 2),
+        "atr": round(atr, 2),
+        "atr_pct": round(atr / price, 4) if price else None,
+        "stop_loss": round(price - 1.5 * atr, 2),
+        "target": round(price + 2.0 * atr, 2),
+        "support": round(float(low.rolling(20).min().iloc[-1]), 2),    # 최근 20일 저점
+        "resistance": round(float(high.rolling(20).max().iloc[-1]), 2),  # 최근 20일 고점
+        "rr": 1.33,
+    }
+
+
+def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
     X, y, full = make_dataset(df)
 
     if len(X) < 200:
@@ -166,7 +248,7 @@ def train_and_evaluate(df: pd.DataFrame) -> dict:
     proba_up = float(model_full.predict_proba(last_features)[0][1])
 
     edge = accuracy - baseline
-    signal = investment_signal(last_features.iloc[0], proba_up, edge)
+    signal = investment_signal(last_features.iloc[0], proba_up, edge, extras)
 
     return {
         "prediction": {
@@ -175,6 +257,7 @@ def train_and_evaluate(df: pd.DataFrame) -> dict:
             "confidence": round(abs(proba_up - 0.5) * 2, 4),  # 0~1
         },
         "signal": signal,
+        "levels": stop_target(df),
         "evaluation": {
             "accuracy": round(accuracy, 4),
             "baseline": round(baseline, 4),

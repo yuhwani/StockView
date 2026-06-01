@@ -12,8 +12,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 import data
+import fundamentals
 import model as ml
 import news as news_mod
+import sentiment
 
 app = FastAPI(title="StockView API")
 
@@ -89,15 +91,28 @@ def news(code: str):
 
 @app.get("/api/predict/{code}")
 def predict(code: str):
+    region = data.get_region(code)
+    name = data.get_name(code)
     try:
         df = data.get_ohlcv(code)
-        result = ml.train_and_evaluate(df)
+        # 펀더멘털·수급·뉴스 감성을 모아 판단 신호에 반영 (실패해도 가격 기반으로 진행)
+        fund = fundamentals.get_fundamentals(code, region)
+        sent = sentiment.analyze(news_mod.get_news(code, region, name))
+        extras = {
+            "valuation": fund,
+            "supply": fund.get("supply"),
+            "sentiment": sent,
+            "region": region,
+        }
+        result = ml.train_and_evaluate(df, extras)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     result["code"] = code
-    result["name"] = data.get_name(code)
-    result["region"] = data.get_region(code)
+    result["name"] = name
+    result["region"] = region
+    result["valuation"] = fund
+    result["sentiment"] = sent
     result["disclaimer"] = (
         "이 예측은 과거 데이터로 학습한 통계 모델의 출력일 뿐이며, "
         "실제 투자 수익을 보장하지 않습니다. 단기 주가 예측의 정확도는 "

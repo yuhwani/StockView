@@ -82,7 +82,14 @@ export default function App() {
         </div>
       )}
 
-      {prediction?.signal && <SignalPanel signal={prediction.signal} />}
+      {prediction?.signal && (
+        <SignalPanel
+          signal={prediction.signal}
+          levels={prediction.levels}
+          valuation={prediction.valuation}
+          region={prediction.region}
+        />
+      )}
 
       <div className="grid">
         {stock && <PriceChart candles={stock.candles} region={stock.region} />}
