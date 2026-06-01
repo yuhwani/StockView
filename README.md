@@ -82,6 +82,12 @@ npm run dev
 4. 검증 정확도를 베이스라인과 비교해 `edge`(우위)를 계산 →
    edge가 0보다 커야 모델이 의미가 있는 것.
 
+## 커밋 컨벤션
+
+커밋 메시지는 [Conventional Commits](https://www.conventionalcommits.org/) 형식을 따릅니다.
+자세한 규칙·예시는 [COMMIT_CONVENTION.md](COMMIT_CONVENTION.md) 참고.
+클론 후 한 번 `git config commit.template .gitmessage` 를 실행하면 커밋 시 양식이 자동으로 뜹니다.
+
 ## 다음으로 해볼 만한 것
 
 - 모델 비교: 로지스틱회귀 / XGBoost / LSTM 추가하고 성능 비교
