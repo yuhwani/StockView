@@ -588,6 +588,32 @@ td.clk {
 .title-row h2 {
   margin: 0;
 }
+.asof-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.asof {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.refresh-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.refresh-btn:hover:not(:disabled) {
+  border-color: #4263eb;
+}
+.refresh-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 .code {
   color: var(--muted);
   font-size: 16px;

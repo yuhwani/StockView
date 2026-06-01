@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import time
-from functools import lru_cache
 
 import FinanceDataReader as fdr
 import pandas as pd
@@ -317,14 +316,24 @@ def _us_records(df: pd.DataFrame, limit: int) -> list[dict]:
     return out
 
 
-@lru_cache(maxsize=256)
-def _fetch_ohlcv_cached(code: str, start: str) -> pd.DataFrame:
-    return fdr.DataReader(code, start)
+_OHLCV_TTL = 60 * 30  # 30분 (일봉이라 장중에도 이 정도면 충분)
+_ohlcv_cache: dict[str, tuple[float, pd.DataFrame]] = {}
 
 
-def get_ohlcv(code: str, start: str = "2018-01-01") -> pd.DataFrame:
-    """일봉 OHLCV 데이터. 인덱스는 Date. 한국·미국 코드 모두 지원."""
-    df = _fetch_ohlcv_cached(code, start).copy()
+def get_ohlcv(code: str, start: str = "2018-01-01", force: bool = False) -> pd.DataFrame:
+    """일봉 OHLCV 데이터. 인덱스는 Date. 한국·미국 코드 모두 지원.
+
+    30분 캐싱하며, force=True면 캐시를 무시하고 최신 데이터를 다시 받는다.
+    """
+    key = f"{code}:{start}"
+    now = time.time()
+    cached = _ohlcv_cache.get(key)
+    if not force and cached and now - cached[0] < _OHLCV_TTL:
+        df = cached[1]
+    else:
+        df = fdr.DataReader(code, start)
+        _ohlcv_cache[key] = (now, df)
+
     if df.empty:
         raise ValueError(f"'{code}' 데이터를 찾을 수 없습니다.")
-    return df
+    return df.copy()

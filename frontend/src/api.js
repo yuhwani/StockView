@@ -12,13 +12,15 @@ async function get(url) {
 export const searchStocks = (q) =>
   get(`/api/search?q=${encodeURIComponent(q)}`);
 
-export const getStock = (code) => get(`/api/stock/${code}`);
+const r = (refresh) => (refresh ? "?refresh=1" : "");
 
-export const predict = (code) => get(`/api/predict/${code}`);
+export const getStock = (code, refresh) => get(`/api/stock/${code}${r(refresh)}`);
+
+export const predict = (code, refresh) => get(`/api/predict/${code}${r(refresh)}`);
 
 export const preview = (code) => get(`/api/preview/${code}`);
 
-export const getNews = (code) => get(`/api/news/${code}`);
+export const getNews = (code, refresh) => get(`/api/news/${code}${r(refresh)}`);
 
 export const getLists = () => get(`/api/lists`);
 

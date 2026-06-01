@@ -212,9 +212,15 @@ export default function StockLists({ onSelectStock, watchlist }) {
                               className={`pv-badge ${
                                 pv.dir === "상승" ? "up" : "down"
                               }`}
+                              title={`${pv.dir}확률 ${(
+                                (pv.dir === "상승" ? pv.prob : 1 - pv.prob) * 100
+                              ).toFixed(0)}%`}
                             >
                               {pv.dir === "상승" ? "▲" : "▼"}{" "}
-                              {(pv.prob * 100).toFixed(0)}%
+                              {(
+                                (pv.dir === "상승" ? pv.prob : 1 - pv.prob) * 100
+                              ).toFixed(0)}
+                              %
                             </span>
                           )}
                         </td>

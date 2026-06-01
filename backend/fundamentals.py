@@ -77,11 +77,11 @@ def _us(code: str) -> dict:
     }
 
 
-def get_fundamentals(code: str, region: str) -> dict:
+def get_fundamentals(code: str, region: str, force: bool = False) -> dict:
     """종목 펀더멘털+수급. 실패해도 빈 dict로 안전하게 반환."""
     key = f"{region}:{code}"
     now = time.time()
-    if key in _cache and now - _cache[key][0] < _TTL:
+    if not force and key in _cache and now - _cache[key][0] < _TTL:
         return _cache[key][1]
 
     try:

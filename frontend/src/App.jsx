@@ -15,18 +15,22 @@ export default function App() {
   const [error, setError] = useState(null);
   const [news, setNews] = useState(null);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [selected, setSelected] = useState(null); // 현재 보고 있는 종목 (새로고침용)
   const watchlist = useWatchlist();
 
-  const handleSelect = async (item) => {
+  const handleSelect = async (item, refresh = false) => {
+    setSelected(item);
     setLoading(true);
     setError(null);
-    setPrediction(null);
-    setStock(null);
-    setNews(null);
+    if (!refresh) {
+      setPrediction(null);
+      setStock(null);
+      setNews(null);
+    }
 
     // 뉴스는 별도로 (실패해도 차트/예측은 보여야 하므로)
     setNewsLoading(true);
-    getNews(item.Code)
+    getNews(item.Code, refresh)
       .then((d) => setNews(d.items))
       .catch(() => setNews([]))
       .finally(() => setNewsLoading(false));
@@ -34,8 +38,8 @@ export default function App() {
     try {
       // 시세와 예측을 동시에 요청
       const [stockData, predData] = await Promise.all([
-        getStock(item.Code),
-        predict(item.Code),
+        getStock(item.Code, refresh),
+        predict(item.Code, refresh),
       ]);
       setStock(stockData);
       setPrediction(predData);
@@ -79,6 +83,18 @@ export default function App() {
               {watchlist.isFav(stock.code) ? "★" : "☆"}
             </button>
           </h2>
+          <div className="asof-row">
+            <span className="asof">
+              📅 기준: {stock.as_of} 종가 · 일봉 데이터 (실시간 아님)
+            </span>
+            <button
+              className="refresh-btn"
+              onClick={() => selected && handleSelect(selected, true)}
+              disabled={loading}
+            >
+              {loading ? "불러오는 중…" : "🔄 새로고침"}
+            </button>
+          </div>
         </div>
       )}
 

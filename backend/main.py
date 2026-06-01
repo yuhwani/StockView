@@ -48,9 +48,9 @@ def named_list(list_id: str, limit: int = 100):
 
 
 @app.get("/api/stock/{code}")
-def stock(code: str, start: str = "2018-01-01"):
+def stock(code: str, start: str = "2018-01-01", refresh: int = 0):
     try:
-        df = data.get_ohlcv(code, start)
+        df = data.get_ohlcv(code, start, force=bool(refresh))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -65,6 +65,7 @@ def stock(code: str, start: str = "2018-01-01"):
         "code": code,
         "name": data.get_name(code),
         "region": data.get_region(code),
+        "as_of": candles[-1]["Date"] if candles else None,  # 데이터 기준일(마지막 거래일)
         "candles": candles,
     }
 
@@ -81,23 +82,24 @@ def preview(code: str):
 
 
 @app.get("/api/news/{code}")
-def news(code: str):
+def news(code: str, refresh: int = 0):
     """종목 관련 최근 뉴스 헤드라인 (한국=네이버, 미국=구글 뉴스)."""
     region = data.get_region(code)
     name = data.get_name(code) or code
-    items = news_mod.get_news(code, region, name)
+    items = news_mod.get_news(code, region, name, force=bool(refresh))
     return {"code": code, "region": region, "items": items}
 
 
 @app.get("/api/predict/{code}")
-def predict(code: str):
+def predict(code: str, refresh: int = 0):
     region = data.get_region(code)
     name = data.get_name(code)
+    force = bool(refresh)
     try:
-        df = data.get_ohlcv(code)
+        df = data.get_ohlcv(code, force=force)
         # 펀더멘털·수급·뉴스 감성을 모아 판단 신호에 반영 (실패해도 가격 기반으로 진행)
-        fund = fundamentals.get_fundamentals(code, region)
-        sent = sentiment.analyze(news_mod.get_news(code, region, name))
+        fund = fundamentals.get_fundamentals(code, region, force=force)
+        sent = sentiment.analyze(news_mod.get_news(code, region, name, force=force))
         extras = {
             "valuation": fund,
             "supply": fund.get("supply"),
@@ -111,6 +113,7 @@ def predict(code: str):
     result["code"] = code
     result["name"] = name
     result["region"] = region
+    result["as_of"] = pd.to_datetime(df.index[-1]).strftime("%Y-%m-%d")
     result["valuation"] = fund
     result["sentiment"] = sent
     result["disclaimer"] = (
