@@ -34,12 +34,12 @@ from features import rsi  # noqa: E402
 
 OUT = HERE / "recommendations.json"
 
-# 잡주 필터 하한
+# 잡주 필터 하한 (이 시총 미만은 제외, 그 위로는 거래대금 상위로 넓게)
 KR_MARCAP_FLOOR = 3e10    # 300억 원
-US_MARCAP_FLOOR = 5e8     # 5억 달러
-# 거래대금/시총 상위 몇 개까지 점수화할지 (넓게)
+US_MARCAP_FLOOR = 3e8     # 3억 달러
+# 거래대금 상위 몇 개까지 점수화할지 (넓게 → 올라오는 중소형주 포착)
 N_KR = 600
-N_US = 300
+N_US = 500
 
 
 def build_universe(n_kr: int, n_us: int) -> list[dict]:
@@ -56,7 +56,10 @@ def build_universe(n_kr: int, n_us: int) -> list[dict]:
         print(f"[universe] KR 실패: {e}")
     try:
         us = data.get_us_marcap()
-        u = us[us["Marcap"] >= US_MARCAP_FLOOR].head(n_us)  # 시총 상위(이미 정렬됨)
+        u = us[us["Marcap"] >= US_MARCAP_FLOOR]
+        # 거래대금(거래량×가격) 상위로 넓게 → 활발한 중소형주 포착
+        sort_col = "Amount" if "Amount" in u else "Marcap"
+        u = u.sort_values(sort_col, ascending=False).head(n_us)
         for r in u.itertuples():
             uni.append({"code": str(r.Code), "name": str(r.Name),
                         "market": str(r.Market), "region": "US"})

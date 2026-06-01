@@ -30,9 +30,24 @@ body {
   padding: 32px 20px 60px;
 }
 
+.logo-link {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+}
 header h1 {
   margin: 0;
   font-size: 28px;
+}
+.back-link {
+  display: inline-block;
+  margin: 4px 0 16px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+.back-link:hover {
+  color: #4263eb;
 }
 header h1 span {
   font-size: 16px;

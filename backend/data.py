@@ -101,13 +101,17 @@ def get_us_marcap() -> pd.DataFrame:
                 errors="coerce",
             )
 
+        close = _to_num(raw["lastsale"])
+        volume = _to_num(raw["volume"]) if "volume" in raw else pd.Series(dtype=float)
         df = pd.DataFrame({
             "Code": raw["symbol"].astype(str).str.strip(),
             "Name": raw["name"].astype(str),
             "Market": raw["exchange"],
             "Marcap": _to_num(raw["marketCap"]),
-            "Close": _to_num(raw["lastsale"]),
+            "Close": close,
             "ChangeRatio": _to_num(raw["pctchange"]),
+            "Volume": volume,
+            "Amount": volume * close,  # 거래대금(달러) ≈ 거래량 × 가격
             "Sector": raw.get("sector", "").astype(str),
         })
         # 보통주만: 시총 있고, 워런트/유닛 같은 특수기호(.,^) 제외
