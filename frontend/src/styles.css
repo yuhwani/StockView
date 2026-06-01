@@ -794,6 +794,102 @@ td.clk {
   padding-top: 12px;
 }
 
+/* 미래 주가 예측 */
+.forecast-card {
+  margin-top: 18px;
+}
+.fc-caveat {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.fc-loading {
+  color: var(--muted);
+  padding: 14px 0;
+}
+.fc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.fc-label {
+  width: 110px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.fc-mid {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fc-ret {
+  font-size: 17px;
+  font-weight: 800;
+}
+.fc-ret.up {
+  color: var(--up);
+}
+.fc-ret.down {
+  color: var(--down);
+}
+.fc-price {
+  font-weight: 600;
+}
+.fc-range {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.fc-rel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+}
+.fc-rel-txt {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.fc-rel.ok .fc-rel-txt {
+  background: rgba(47, 158, 68, 0.14);
+  color: var(--good);
+}
+.fc-rel.mid .fc-rel-txt {
+  background: rgba(240, 140, 0, 0.14);
+  color: #d9480f;
+}
+.fc-rel.bad .fc-rel-txt {
+  background: rgba(224, 49, 49, 0.12);
+  color: var(--sig-sell);
+}
+.fc-rel-acc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.fc-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 14px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* 뉴스 패널 */
 .news-card {
   margin-top: 18px;

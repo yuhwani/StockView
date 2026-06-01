@@ -11,9 +11,75 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.metrics import mean_absolute_error
 
-from features import FEATURE_COLUMNS, make_dataset
+from features import FEATURE_COLUMNS, build_features, make_dataset
+
+
+# 다기간 예측 horizon (거래일, 라벨)
+_HORIZONS = [
+    (1, "하루 뒤"),
+    (5, "일주일 뒤"),
+    (20, "한달 뒤"),
+    (60, "장기 (약 3개월)"),
+]
+
+
+def forecast(df: pd.DataFrame) -> dict:
+    """하루·일주일·한달·장기 미래 수익률을 회귀로 예측.
+
+    정직성:
+    - 단일 가격으로 단정하지 않고 '예상 등락률 + 가격 범위(밴드)'를 준다.
+    - 각 기간 예측이 과거 검증에서 방향을 맞춘 비율(dir_accuracy)을 함께 줘서
+      신뢰도를 드러낸다. 기간이 길수록 밴드는 넓고 정확도는 보통 낮다.
+    """
+    feat = build_features(df)
+    close = df["Close"].astype(float)
+    feat_valid = feat.dropna(subset=FEATURE_COLUMNS)
+    X_all = feat_valid[FEATURE_COLUMNS]
+    price_now = float(close.iloc[-1])
+
+    items = []
+    for h, label in _HORIZONS:
+        target = close.shift(-h) / close - 1  # 미래 h일 수익률
+        y = target.loc[X_all.index]
+        mask = y.notna()
+        Xh, yh = X_all[mask], y[mask]
+        if len(Xh) < 200:
+            continue
+
+        # 시간순 80/20 분할 (셔플 금지)
+        split = int(len(Xh) * 0.8)
+        X_tr, X_te = Xh.iloc[:split], Xh.iloc[split:]
+        y_tr, y_te = yh.iloc[:split], yh.iloc[split:]
+
+        reg = RandomForestRegressor(
+            n_estimators=120, max_depth=6, min_samples_leaf=20,
+            random_state=42, n_jobs=-1,
+        )
+        reg.fit(X_tr, y_tr)
+        pred_te = reg.predict(X_te)
+        mae = float(mean_absolute_error(y_te, pred_te))
+        dir_acc = float((np.sign(pred_te) == np.sign(y_te.values)).mean())
+        resid_std = float(np.std(y_te.values - pred_te))
+
+        # 최신 데이터까지 다시 학습 후 '지금' 기준 미래 예측
+        reg.fit(Xh, yh)
+        exp_ret = float(reg.predict(X_all.iloc[[-1]])[0])
+
+        items.append({
+            "label": label,
+            "days": h,
+            "expected_return": round(exp_ret, 4),
+            "pred_price": round(price_now * (1 + exp_ret), 2),
+            "low": round(price_now * (1 + exp_ret - resid_std), 2),
+            "high": round(price_now * (1 + exp_ret + resid_std), 2),
+            "dir_accuracy": round(dir_acc, 3),
+            "mae": round(mae, 4),
+        })
+
+    return {"price_now": round(price_now, 2), "horizons": items}
 
 
 def quick_predict(df: pd.DataFrame) -> dict:

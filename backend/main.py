@@ -93,6 +93,19 @@ def news(code: str, refresh: int = 0):
     return {"code": code, "region": region, "items": items}
 
 
+@app.get("/api/forecast/{code}")
+def forecast(code: str, refresh: int = 0):
+    """다기간 미래 주가 예측 (하루·일주일·한달·장기)."""
+    try:
+        df = data.get_ohlcv(code, force=bool(refresh))
+        result = ml.forecast(df)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    result["code"] = code
+    result["region"] = data.get_region(code)
+    return result
+
+
 @app.get("/api/predict/{code}")
 def predict(code: str, refresh: int = 0):
     region = data.get_region(code)

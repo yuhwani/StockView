@@ -5,7 +5,8 @@ import PredictionPanel from "../components/PredictionPanel";
 import SignalPanel from "../components/SignalPanel";
 import NewsPanel from "../components/NewsPanel";
 import ReturnsRow from "../components/ReturnsRow";
-import { getStock, predict, getNews } from "../api";
+import ForecastPanel from "../components/ForecastPanel";
+import { getStock, predict, getNews, getForecast } from "../api";
 import { useWatchlist } from "../useWatchlist";
 
 // 종목 상세 분석 페이지 — URL의 :code 로 데이터를 받아 분석을 보여준다.
@@ -15,8 +16,10 @@ export default function StockPage() {
   const [stock, setStock] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [news, setNews] = useState(null);
+  const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [forecastLoading, setForecastLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const load = async (refresh = false) => {
@@ -26,6 +29,7 @@ export default function StockPage() {
       setStock(null);
       setPrediction(null);
       setNews(null);
+      setForecast(null);
     }
 
     setNewsLoading(true);
@@ -33,6 +37,13 @@ export default function StockPage() {
       .then((d) => setNews(d.items))
       .catch(() => setNews([]))
       .finally(() => setNewsLoading(false));
+
+    // 미래 예측은 학습이 무거워 따로 (signal·차트 먼저 보이게)
+    setForecastLoading(true);
+    getForecast(code, refresh)
+      .then(setForecast)
+      .catch(() => setForecast({ horizons: [] }))
+      .finally(() => setForecastLoading(false));
 
     try {
       const [stockData, predData] = await Promise.all([
@@ -107,6 +118,14 @@ export default function StockPage() {
         {stock && <PriceChart candles={stock.candles} region={stock.region} />}
         {prediction && <PredictionPanel result={prediction} />}
       </div>
+
+      {stock && (
+        <ForecastPanel
+          forecast={forecast}
+          region={stock.region}
+          loading={forecastLoading}
+        />
+      )}
 
       {stock && (
         <NewsPanel news={news} candles={stock.candles} loading={newsLoading} />
