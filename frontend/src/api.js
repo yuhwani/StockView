@@ -30,6 +30,8 @@ export const getForecast = (code, refresh) =>
 export const getBacktest = (code, refresh) =>
   get(`/api/backtest/${code}${r(refresh)}`);
 
+export const getAiSummary = (code) => get(`/api/ai-summary/${code}`);
+
 export const getPrices = (codes) =>
   get(`/api/prices?codes=${codes.map(encodeURIComponent).join(",")}`);
 

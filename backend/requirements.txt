@@ -7,6 +7,8 @@ pandas
 numpy
 requests
 python-dotenv
+# AI 뉴스 분석 (선택 — ANTHROPIC_API_KEY 있을 때만 동작)
+anthropic
 # LSTM 모델 비교용 (선택 — 없으면 LSTM만 건너뜀).
 # CPU 버전 설치 권장: pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch

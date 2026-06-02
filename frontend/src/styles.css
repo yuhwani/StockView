@@ -1328,6 +1328,46 @@ td.clk {
   padding-top: 12px;
 }
 
+/* AI 뉴스 분석 */
+.ai-card {
+  margin-top: 18px;
+}
+.ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ai-head h3 {
+  margin: 0;
+}
+.ai-loading {
+  color: var(--muted);
+  padding: 12px 0;
+}
+.ai-summary {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-left: 4px solid #4263eb;
+  border-radius: 10px;
+}
+.ai-note {
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+.ai-foot {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 12px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* DART 공시 */
 .disc-card {
   margin-top: 18px;

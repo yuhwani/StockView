@@ -26,6 +26,7 @@ try:
 except Exception:
     pass
 
+import ai
 import data
 import dart
 import fundamentals
@@ -72,7 +73,7 @@ def _fmt_price(v, region):
     return f"${v:,.2f}" if region == "US" else f"{int(round(v)):,}원"
 
 
-def _build_message(code, name, region, triggers, price, chg, signal) -> str:
+def _build_message(code, name, region, triggers, price, chg, signal, ai_text=None) -> str:
     action = signal["action"] if signal else "관망"
     emoji = "🔴" if "매도" in action else ("🟢" if "매수" in action else "🟡")
     flag = "🇺🇸" if region == "US" else "🇰🇷"
@@ -84,6 +85,8 @@ def _build_message(code, name, region, triggers, price, chg, signal) -> str:
     if signal and signal.get("reasons"):
         rs = [r["text"] for r in signal["reasons"][:3]]
         lines.append("· 근거: " + " · ".join(rs))
+    if ai_text:
+        lines.append(f"🤖 AI 분석: {ai_text}")
     lines.append("※ 참고용 신호입니다. 최종 판단·책임은 본인.")
     return "\n".join(lines)
 
@@ -158,7 +161,18 @@ def check_stock(code: str, state: dict) -> str | None:
     except Exception as e:
         print(f"[watcher] {code} 신호 계산 실패: {e}")
 
-    return _build_message(code, name, region, triggers, price, chg, signal)
+    # AI 뉴스 분석 (키 있을 때만 — 트리거 발생 시에만 호출해 비용 절감)
+    ai_text = None
+    try:
+        ai_text = ai.analyze(
+            name, code, region, [n.get("title", "") for n in items], chg,
+            signal["action"] if signal else None,
+            [r["text"] for r in signal["reasons"]] if signal else None,
+        )
+    except Exception as e:
+        print(f"[watcher] {code} AI 분석 실패: {e}")
+
+    return _build_message(code, name, region, triggers, price, chg, signal, ai_text)
 
 
 def run_once() -> int:
@@ -182,7 +196,7 @@ def run_once() -> int:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--interval", type=int, default=600, help="점검 주기(초)")
+    ap.add_argument("--interval", type=int, default=180, help="점검 주기(초)")
     ap.add_argument("--once", action="store_true")
     ap.add_argument("--test", action="store_true")
     args = ap.parse_args()

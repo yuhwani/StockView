@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import ai
 import dart
 import data
 import fundamentals
@@ -118,6 +119,36 @@ def backtest(code: str, refresh: int = 0):
         raise HTTPException(status_code=400, detail=str(e))
     result["code"] = code
     return result
+
+
+@app.get("/api/ai-summary/{code}")
+def ai_summary(code: str):
+    """Claude로 최근 뉴스를 읽어 근거 있는 매수/매도 한 줄 분석 (키 있을 때만)."""
+    if not ai.is_enabled():
+        return {"enabled": False, "summary": None,
+                "message": "AI 분석은 ANTHROPIC_API_KEY 설정 시 동작합니다."}
+    region = data.get_region(code)
+    name = data.get_name(code) or code
+    try:
+        df = data.get_ohlcv(code)
+        items = news_mod.get_news(code, region, name)
+        fund = fundamentals.get_fundamentals(code, region)
+        sent = sentiment.analyze(items)
+        extras = {"valuation": fund, "supply": fund.get("supply"),
+                  "sentiment": sent, "dart_events": dart.detect_events(code),
+                  "region": region}
+        signal = ml.quick_signal(df, extras)
+        close = df["Close"].astype(float)
+        chg = float(close.iloc[-1] / close.iloc[-2] - 1) * 100 if len(close) > 1 else None
+        summary = ai.analyze(
+            name, code, region, [n.get("title", "") for n in items], chg,
+            signal["action"] if signal else None,
+            [r["text"] for r in signal["reasons"]] if signal else None,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"enabled": True, "summary": summary,
+            "action": signal["action"] if signal else None}
 
 
 @app.get("/api/predict/{code}")
