@@ -6,6 +6,9 @@ __pycache__/
 
 # 배치가 생성하는 추천 결과 (재생성 가능)
 backend/recommendations.json
+# 알림 워커 상태/감시목록 (런타임 생성)
+backend/watch.json
+backend/watch_state.json
 *.egg-info/
 .pytest_cache/
 .env

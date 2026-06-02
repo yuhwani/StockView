@@ -17,6 +17,10 @@ down:
 recommend:
 	cd backend && venv\Scripts\python.exe recommend.py
 
+## watch: 실시간 이벤트 알림 워커 실행 (관심·보유 종목 감시)
+watch:
+	cd backend && venv\Scripts\python.exe watcher.py
+
 ## backend: 백엔드만 실행 (코드 변경 시 자동 리로드)
 backend:
 	cd backend && venv\Scripts\python.exe -m uvicorn main:app --port 8000 --host 127.0.0.1 --reload

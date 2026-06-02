@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 import dart
 import data
@@ -182,6 +183,31 @@ def recommendations():
         return {"date": None, "buys": [],
                 "message": "아직 추천이 생성되지 않았습니다. (배치 미실행)"}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+_WATCH_FILE = Path(__file__).resolve().parent / "watch.json"
+
+
+class WatchReq(BaseModel):
+    codes: list[str]
+
+
+@app.post("/api/watch")
+def set_watch(req: WatchReq):
+    """실시간 알림 워커가 감시할 종목(관심·보유) 동기화."""
+    codes = sorted({c.strip() for c in req.codes if c.strip()})
+    _WATCH_FILE.write_text(
+        json.dumps({"codes": codes}, ensure_ascii=False), encoding="utf-8"
+    )
+    return {"ok": True, "count": len(codes)}
+
+
+@app.get("/api/watch")
+def get_watch():
+    try:
+        return json.loads(_WATCH_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"codes": []}
 
 
 @app.get("/")

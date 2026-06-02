@@ -185,6 +185,21 @@ def quick_predict(df: pd.DataFrame) -> dict:
     }
 
 
+def quick_signal(df: pd.DataFrame, extras: dict | None = None) -> dict | None:
+    """워커/알림용 빠른 종합 신호 (백테스트·모델비교 없이 신호만)."""
+    X, y, full = make_dataset(df)
+    if len(X) < 200:
+        return None
+    m = RandomForestClassifier(
+        n_estimators=120, max_depth=5, min_samples_leaf=20,
+        random_state=42, n_jobs=-1,
+    )
+    m.fit(X, y)
+    last = full[FEATURE_COLUMNS].iloc[[-1]]
+    proba = float(m.predict_proba(last)[0][1])
+    return investment_signal(last.iloc[0], proba, 0.05, extras)  # edge 양수로 패널티 회피
+
+
 def investment_signal(row, proba_up: float, edge: float, extras: dict | None = None) -> dict:
     """ML 예측 + 기술적 지표 + 펀더멘털·수급·뉴스를 종합해 행동 신호를 만든다.
 

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -13,6 +14,26 @@ import RecommendationsPage from "./pages/RecommendationsPage";
 import PortfolioPage from "./pages/PortfolioPage";
 import AccountsPage from "./pages/AccountsPage";
 import { AccountsProvider, useAccounts } from "./useAccounts";
+import { useWatchlist } from "./useWatchlist";
+import { syncWatch } from "./api";
+
+// 관심·보유 종목을 백엔드(알림 워커)로 동기화
+function WatchSync() {
+  const { items } = useWatchlist();
+  const { accounts, txOf } = useAccounts();
+  const codes = [
+    ...new Set([
+      ...items.map((i) => i.Code),
+      ...accounts.flatMap((a) => (txOf(a.id) || []).map((t) => t.code)),
+    ]),
+  ];
+  const key = codes.join(",");
+  useEffect(() => {
+    if (codes.length) syncWatch(codes).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return null;
+}
 
 // 계정이 선택돼야 들어갈 수 있는 레이아웃 (없으면 계정 선택 화면으로)
 function GatedLayout() {
@@ -23,6 +44,7 @@ function GatedLayout() {
 
   return (
     <div className="app">
+      <WatchSync />
       <header>
         <div className="header-top">
           <Link to="/home" className="logo-link">

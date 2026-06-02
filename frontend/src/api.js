@@ -33,6 +33,14 @@ export const getBacktest = (code, refresh) =>
 export const getPrices = (codes) =>
   get(`/api/prices?codes=${codes.map(encodeURIComponent).join(",")}`);
 
+// 실시간 알림 워커가 감시할 종목(관심+보유) 동기화
+export const syncWatch = (codes) =>
+  fetch("/api/watch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codes }),
+  }).then((r) => r.json());
+
 export const getLists = () => get(`/api/lists`);
 
 export const getList = (id, limit = 100) =>
