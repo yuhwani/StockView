@@ -10,7 +10,7 @@ function fmt(v, region) {
 const today = () => new Date().toISOString().slice(0, 10);
 
 // 종목 상세에서 현재 계정에 실제 매매 내역을 기록
-export default function TradePanel({ account, stock, currentPrice, onTrade }) {
+export default function TradePanel({ account, stock, currentPrice, heldQty = 0, onTrade }) {
   const [side, setSide] = useState(null); // 'buy' | 'sell' | null
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState(currentPrice ?? "");
@@ -38,6 +38,23 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
     const q = Number(qty);
     const p = Number(price);
     if (!q || q <= 0 || !p || p <= 0) return;
+
+    // 매도 검증: 보유 수량보다 많이 팔거나, 보유하지 않은 종목 매도 차단
+    if (side === "sell") {
+      if (heldQty <= 0) {
+        window.alert(
+          `'${stock.name}'은(는) 보유하고 있지 않아 매도할 수 없어요.\n먼저 매수 기록을 추가하세요.`
+        );
+        return;
+      }
+      if (q > heldQty) {
+        window.alert(
+          `보유 수량(${heldQty}주)보다 많이 매도할 수 없어요.\n매도 수량을 ${heldQty}주 이하로 입력하세요.`
+        );
+        return;
+      }
+    }
+
     onTrade({
       code: stock.code,
       name: stock.name,
@@ -56,6 +73,7 @@ export default function TradePanel({ account, stock, currentPrice, onTrade }) {
       <div className="trade-head">
         <h3>💰 매매 기록</h3>
         <span className="trade-acc">{account.name}</span>
+        <span className="trade-held">보유 {heldQty}주</span>
       </div>
 
       <div className="trade-actions">

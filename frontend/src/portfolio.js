@@ -64,12 +64,14 @@ export function computeHoldings(txs, prices) {
     });
   }
 
-  // 보유 중(수량>0) 먼저, 평가금액 큰 순
-  holdings.sort((a, b) => (b.qty > 0) - (a.qty > 0) || (b.evalValue || 0) - (a.evalValue || 0));
+  // 전량 매도(0주)한 종목은 보유 목록에서 제외 (실현손익은 합계에 이미 반영됨)
+  const visible = holdings
+    .filter((h) => h.qty > 0)
+    .sort((a, b) => (b.evalValue || 0) - (a.evalValue || 0));
 
   const totalUnrealized = totalEval - totalCost;
   return {
-    holdings,
+    holdings: visible,
     totalEval,
     totalCost,
     totalUnrealized,

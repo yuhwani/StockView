@@ -450,6 +450,12 @@ td.clk {
   color: var(--muted);
   font-size: 13px;
 }
+.trade-held {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4263eb;
+}
 .trade-hint {
   color: var(--muted);
   margin: 8px 0 0;

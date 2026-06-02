@@ -113,6 +113,17 @@ export default function StockPage() {
           account={accounts.active}
           stock={stock}
           currentPrice={stock.candles[stock.candles.length - 1].Close}
+          heldQty={
+            accounts.activeId
+              ? accounts
+                  .txOf(accounts.activeId)
+                  .filter((t) => t.code === stock.code)
+                  .reduce(
+                    (n, t) => n + (t.side === "buy" ? Number(t.qty) : -Number(t.qty)),
+                    0
+                  )
+              : 0
+          }
           onTrade={(t) => accounts.addTrade(accounts.activeId, t)}
         />
       )}
