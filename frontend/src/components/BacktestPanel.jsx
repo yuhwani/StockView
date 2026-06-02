@@ -18,8 +18,9 @@ export default function BacktestPanel({ backtest, loading }) {
     <div className="card bt-card">
       <h3>🧪 수익률 백테스트</h3>
       <p className="bt-caveat">
-        ML 방향예측대로 <b>‘상승 예측일만 보유(아니면 현금)’</b> 했을 때 vs 단순 보유.
-        앞 80%로 학습 → 뒤 20% 구간 검증 (수수료·세금 미반영, 참고용).
+        ML 방향예측대로 <b>‘상승 예측일만 보유(아니면 현금)’</b> vs 단순 보유.
+        <b> walk-forward</b> 방식 — 주기적으로 그 시점까지의 데이터로만 재학습해 미래를
+        예측 (미래 정보 누설 없음, 수수료·세금 미반영, 참고용).
       </p>
 
       {loading ? (
@@ -103,7 +104,8 @@ export default function BacktestPanel({ backtest, loading }) {
 
           <p className="bt-period">
             검증 구간: {backtest.period_start} ~ {backtest.period_end} (
-            {backtest.days}거래일, 보유 {backtest.long_days}일)
+            {backtest.days}거래일, 보유 {backtest.long_days}일
+            {backtest.retrains ? `, 재학습 ${backtest.retrains}회` : ""})
           </p>
         </>
       )}

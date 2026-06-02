@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
+from xgboost import XGBClassifier
 
 from features import FEATURE_COLUMNS, build_features, make_dataset
 
@@ -83,36 +84,48 @@ def forecast(df: pd.DataFrame) -> dict:
 
 
 def backtest(df: pd.DataFrame) -> dict:
-    """ML 방향예측대로 매매했을 때의 수익률을 단순보유와 비교 (out-of-sample).
+    """walk-forward 백테스트 — ML 예측대로 매매 vs 단순보유.
 
     방식(정직성):
-    - 앞 80%로만 학습하고, 뒤 20% 구간에서 매일 '내일 상승' 예측이면 보유(long),
-      아니면 현금(0%) 보유하는 long/flat 전략의 누적 수익률을 계산.
+    - 데이터 앞 60%부터 시작해, 일정 주기(기본 40거래일)마다 **그 시점까지의
+      데이터로만 다시 학습**하고 다음 구간을 예측 (미래 정보 누설 없음).
+    - 매일 '내일 상승' 예측이면 보유(long), 아니면 현금(0%)인 long/flat 전략.
     - 같은 구간 '단순 매수 후 보유(buy & hold)'와 비교.
-    - 수수료·세금·슬리피지는 미반영(참고용). 더 엄밀한 walk-forward는 TODO.
+    - 수수료·세금·슬리피지 미반영(참고용).
     """
     X, y, _ = make_dataset(df)
-    if len(X) < 250:
-        raise ValueError("백테스트에 필요한 데이터가 부족합니다 (최소 250거래일).")
+    total = len(X)
+    if total < 300:
+        raise ValueError("백테스트에 필요한 데이터가 부족합니다 (최소 300거래일).")
 
-    split = int(len(X) * 0.8)
-    X_tr, X_te, y_tr = X.iloc[:split], X.iloc[split:], y.iloc[:split]
-
-    model = RandomForestClassifier(
-        n_estimators=200, max_depth=5, min_samples_leaf=20,
-        random_state=42, n_jobs=-1,
-    )
-    model.fit(X_tr, y_tr)
-    pred_up = model.predict_proba(X_te)[:, 1] >= 0.5
+    start = int(total * 0.6)
+    retrain_every = 40
 
     close = df["Close"].astype(float)
-    nxt_ret = (close.shift(-1) / close - 1)        # 각 날의 '다음날' 실현 수익률
-    test_ret = nxt_ret.loc[X_te.index].fillna(0).values
+    nxt_ret = (close.shift(-1) / close - 1)
+
+    proba = np.empty(total - start)
+    retrains = 0
+    t = start
+    while t < total:
+        end = min(t + retrain_every, total)
+        m = RandomForestClassifier(
+            n_estimators=120, max_depth=5, min_samples_leaf=20,
+            random_state=42, n_jobs=-1,
+        )
+        m.fit(X.iloc[:t], y.iloc[:t])          # 그 시점까지의 데이터로만 학습
+        proba[t - start:end - start] = m.predict_proba(X.iloc[t:end])[:, 1]
+        retrains += 1
+        t = end
+
+    idx = X.index[start:]
+    pred_up = proba >= 0.5
+    test_ret = nxt_ret.loc[idx].fillna(0).values
 
     strat_daily = np.where(pred_up, test_ret, 0.0)  # 상승 예측일만 보유
     strat_eq = np.cumprod(1 + strat_daily)
     hold_eq = np.cumprod(1 + test_ret)
-    dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in X_te.index]
+    dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in idx]
     n = len(test_ret)
 
     long_days = int(pred_up.sum())
@@ -139,6 +152,7 @@ def backtest(df: pd.DataFrame) -> dict:
         "period_end": dates[-1],
         "days": n,
         "long_days": long_days,
+        "retrains": retrains,
         "hit_rate": round(hits / long_days, 3) if long_days else 0.0,
         "strategy_return": round(float(strat_eq[-1] - 1), 4),
         "buyhold_return": round(float(hold_eq[-1] - 1), 4),
@@ -362,6 +376,26 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
     up_mask = y_test.values == 1
     up_recall = float((test_pred[up_mask] == 1).mean()) if up_mask.any() else 0.0
 
+    # 모델 비교: 같은 분할에서 XGBoost 정확도도 측정
+    try:
+        xgb = XGBClassifier(
+            n_estimators=200, max_depth=4, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=0.8, eval_metric="logloss",
+            random_state=42, n_jobs=-1,
+        )
+        xgb.fit(X_train, y_train)
+        xgb_acc = float((xgb.predict(X_test) == y_test.values).mean())
+    except Exception as e:
+        print(f"[xgboost] 실패: {e}")
+        xgb_acc = None
+
+    model_comparison = [
+        {"name": "RandomForest", "accuracy": round(accuracy, 4)},
+    ]
+    if xgb_acc is not None:
+        model_comparison.append({"name": "XGBoost", "accuracy": round(xgb_acc, 4)})
+    model_comparison.append({"name": "베이스라인", "accuracy": round(baseline, 4)})
+
     # 피처 중요도
     importances = sorted(
         zip(FEATURE_COLUMNS, model.feature_importances_),
@@ -398,6 +432,7 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
             "test_size": int(len(X_test)),
             "train_size": int(len(X_train)),
         },
+        "model_comparison": model_comparison,
         "feature_importance": [
             {"feature": f, "importance": round(float(imp), 4)}
             for f, imp in importances

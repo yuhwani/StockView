@@ -1,5 +1,19 @@
 // 거래 내역 + 현재가로 보유 종목과 손익을 계산 (평균매입가 방식)
 
+// 특정 종목의 현재 보유 수량 (매도는 보유분까지만, 음수 불가)
+export function heldQtyOf(txs, code) {
+  let qty = 0;
+  const sorted = [...txs]
+    .filter((t) => t.code === code)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  for (const t of sorted) {
+    const q = Number(t.qty) || 0;
+    if (t.side === "buy") qty += q;
+    else qty -= Math.min(q, qty); // 보유보다 많이 못 팜
+  }
+  return qty;
+}
+
 export function computeHoldings(txs, prices) {
   // 종목별로 거래를 시간순 처리
   const byCode = {};

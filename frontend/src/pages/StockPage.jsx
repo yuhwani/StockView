@@ -11,6 +11,7 @@ import TradePanel from "../components/TradePanel";
 import { getStock, predict, getNews, getForecast, getBacktest } from "../api";
 import { useWatchlist } from "../useWatchlist";
 import { useAccounts } from "../useAccounts";
+import { heldQtyOf } from "../portfolio";
 
 // 종목 상세 분석 페이지 — URL의 :code 로 데이터를 받아 분석을 보여준다.
 export default function StockPage() {
@@ -125,13 +126,7 @@ export default function StockPage() {
           currentPrice={stock.candles[stock.candles.length - 1].Close}
           heldQty={
             accounts.activeId
-              ? accounts
-                  .txOf(accounts.activeId)
-                  .filter((t) => t.code === stock.code)
-                  .reduce(
-                    (n, t) => n + (t.side === "buy" ? Number(t.qty) : -Number(t.qty)),
-                    0
-                  )
+              ? heldQtyOf(accounts.txOf(accounts.activeId), stock.code)
               : 0
           }
           onTrade={(t) => accounts.addTrade(accounts.activeId, t)}

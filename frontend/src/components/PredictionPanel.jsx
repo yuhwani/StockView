@@ -9,6 +9,11 @@ export default function PredictionPanel({ result }) {
   const { prediction, evaluation, feature_importance, disclaimer } = result;
   const up = prediction.direction === "상승";
   const beatsBaseline = evaluation.edge > 0;
+  const models = result.model_comparison || [];
+  const best = models.reduce(
+    (a, b) => (b.accuracy > (a?.accuracy ?? -1) ? b : a),
+    null
+  );
 
   return (
     <div className="card">
@@ -40,6 +45,29 @@ export default function PredictionPanel({ result }) {
           ? "이 종목에선 모델이 베이스라인보다 근소하게 나았습니다. 그래도 과신은 금물!"
           : "이 모델은 단순 베이스라인을 이기지 못했습니다. 즉, 현재 피처로는 의미 있는 예측력이 없다는 정직한 결과입니다."}
       </div>
+
+      {models.length > 0 && (
+        <div className="model-cmp">
+          <div className="mc-title">모델 비교 (검증 정확도)</div>
+          {models.map((m) => (
+            <div key={m.name} className="mc-row">
+              <span className="mc-name">
+                {m.name}
+                {best && m.name === best.name && m.name !== "베이스라인" && (
+                  <span className="mc-best">최고</span>
+                )}
+              </span>
+              <div className="mc-bar">
+                <div
+                  className={m.name === "베이스라인" ? "base" : ""}
+                  style={{ width: `${Math.min(m.accuracy * 100, 100)}%` }}
+                />
+              </div>
+              <span className="mc-val">{pct(m.accuracy)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <details className="feat">
         <summary>모델이 본 신호 (피처 중요도)</summary>

@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 finance-datareader
 scikit-learn
+xgboost
 pandas
 numpy
 requests
