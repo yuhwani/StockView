@@ -6,3 +6,4 @@ xgboost
 pandas
 numpy
 requests
+python-dotenv

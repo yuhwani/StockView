@@ -14,6 +14,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+import dart
 import data
 import fundamentals
 import model as ml
@@ -128,10 +129,12 @@ def predict(code: str, refresh: int = 0):
         # 펀더멘털·수급·뉴스 감성을 모아 판단 신호에 반영 (실패해도 가격 기반으로 진행)
         fund = fundamentals.get_fundamentals(code, region, force=force)
         sent = sentiment.analyze(news_mod.get_news(code, region, name, force=force))
+        dart_events = dart.detect_events(code)  # 한국 종목 실제 공시 재료
         extras = {
             "valuation": fund,
             "supply": fund.get("supply"),
             "sentiment": sent,
+            "dart_events": dart_events,
             "region": region,
         }
         result = ml.train_and_evaluate(df, extras)
@@ -144,6 +147,7 @@ def predict(code: str, refresh: int = 0):
     result["as_of"] = pd.to_datetime(df.index[-1]).strftime("%Y-%m-%d")
     result["valuation"] = fund
     result["sentiment"] = sent
+    result["disclosures"] = dart.get_disclosures(code)
     result["disclaimer"] = (
         "이 예측은 과거 데이터로 학습한 통계 모델의 출력일 뿐이며, "
         "실제 투자 수익을 보장하지 않습니다. 단기 주가 예측의 정확도는 "

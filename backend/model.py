@@ -273,7 +273,7 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
         elif sscore <= -0.15:
             score -= 0.5; reasons.append(("down", f"뉴스 다소 부정 (감성 {sscore:+.2f})"))
 
-    # 8) 재료(이벤트): 자사주매입·증설·최초기술 등
+    # 8) 재료(이벤트): 뉴스 키워드 기반
     good_bonus = 0.0
     for ev in sen.get("events", []):
         if ev["tone"] == "good" and good_bonus < 1.0:
@@ -281,6 +281,15 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
         elif ev["tone"] == "bad":
             score -= 1; reasons.append(("down", f"악재 감지: {ev['label']}"))
     score += good_bonus
+
+    # 8b) DART 공시 기반 재료 (실제 공시라 뉴스보다 신뢰도 높음 → 가중치 ↑)
+    dart_bonus = 0.0
+    for ev in extras.get("dart_events", []):
+        if ev["tone"] == "good" and dart_bonus < 1.5:
+            dart_bonus += 0.75; reasons.append(("up", f"공시: {ev['label']}"))
+        elif ev["tone"] == "bad":
+            score -= 1.5; reasons.append(("down", f"공시 악재: {ev['label']}"))
+    score += dart_bonus
 
     # 9) 애널리스트 의견 (미국)
     rating = (val.get("analyst_rating") or "").lower()

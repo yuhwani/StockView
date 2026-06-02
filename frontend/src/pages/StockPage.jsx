@@ -7,6 +7,7 @@ import NewsPanel from "../components/NewsPanel";
 import PriceHeader from "../components/PriceHeader";
 import ForecastPanel from "../components/ForecastPanel";
 import BacktestPanel from "../components/BacktestPanel";
+import DisclosurePanel from "../components/DisclosurePanel";
 import TradePanel from "../components/TradePanel";
 import { getStock, predict, getNews, getForecast, getBacktest } from "../api";
 import { useWatchlist } from "../useWatchlist";
@@ -156,6 +157,10 @@ export default function StockPage() {
       )}
 
       {stock && <BacktestPanel backtest={bt} loading={btLoading} />}
+
+      {prediction?.disclosures?.length > 0 && (
+        <DisclosurePanel disclosures={prediction.disclosures} />
+      )}
 
       {stock && (
         <NewsPanel news={news} candles={stock.candles} loading={newsLoading} />

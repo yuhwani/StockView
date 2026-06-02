@@ -1328,6 +1328,43 @@ td.clk {
   padding-top: 12px;
 }
 
+/* DART 공시 */
+.disc-card {
+  margin-top: 18px;
+}
+.disc-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+}
+.disc-list li {
+  display: flex;
+  gap: 12px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 14px;
+}
+.disc-list li:last-child {
+  border-bottom: none;
+}
+.disc-date {
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.disc-title {
+  font-weight: 500;
+}
+.disc-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 12px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* 뉴스 패널 */
 .news-card {
   margin-top: 18px;
