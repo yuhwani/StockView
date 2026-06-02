@@ -106,6 +106,18 @@ def forecast(code: str, refresh: int = 0):
     return result
 
 
+@app.get("/api/backtest/{code}")
+def backtest(code: str, refresh: int = 0):
+    """ML 예측대로 매매했을 때 수익률 백테스트 (단순보유 대비)."""
+    try:
+        df = data.get_ohlcv(code, force=bool(refresh))
+        result = ml.backtest(df)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    result["code"] = code
+    return result
+
+
 @app.get("/api/predict/{code}")
 def predict(code: str, refresh: int = 0):
     region = data.get_region(code)

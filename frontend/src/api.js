@@ -27,6 +27,9 @@ export const getRecommendations = () => get(`/api/recommendations`);
 export const getForecast = (code, refresh) =>
   get(`/api/forecast/${code}${r(refresh)}`);
 
+export const getBacktest = (code, refresh) =>
+  get(`/api/backtest/${code}${r(refresh)}`);
+
 export const getPrices = (codes) =>
   get(`/api/prices?codes=${codes.map(encodeURIComponent).join(",")}`);
 

@@ -6,8 +6,9 @@ import SignalPanel from "../components/SignalPanel";
 import NewsPanel from "../components/NewsPanel";
 import PriceHeader from "../components/PriceHeader";
 import ForecastPanel from "../components/ForecastPanel";
+import BacktestPanel from "../components/BacktestPanel";
 import TradePanel from "../components/TradePanel";
-import { getStock, predict, getNews, getForecast } from "../api";
+import { getStock, predict, getNews, getForecast, getBacktest } from "../api";
 import { useWatchlist } from "../useWatchlist";
 import { useAccounts } from "../useAccounts";
 
@@ -20,9 +21,11 @@ export default function StockPage() {
   const [prediction, setPrediction] = useState(null);
   const [news, setNews] = useState(null);
   const [forecast, setForecast] = useState(null);
+  const [bt, setBt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [forecastLoading, setForecastLoading] = useState(true);
+  const [btLoading, setBtLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const load = async (refresh = false) => {
@@ -33,6 +36,7 @@ export default function StockPage() {
       setPrediction(null);
       setNews(null);
       setForecast(null);
+      setBt(null);
     }
 
     setNewsLoading(true);
@@ -47,6 +51,12 @@ export default function StockPage() {
       .then(setForecast)
       .catch(() => setForecast({ horizons: [] }))
       .finally(() => setForecastLoading(false));
+
+    setBtLoading(true);
+    getBacktest(code, refresh)
+      .then(setBt)
+      .catch(() => setBt({ curve: [] }))
+      .finally(() => setBtLoading(false));
 
     try {
       const [stockData, predData] = await Promise.all([
@@ -149,6 +159,8 @@ export default function StockPage() {
           loading={forecastLoading}
         />
       )}
+
+      {stock && <BacktestPanel backtest={bt} loading={btLoading} />}
 
       {stock && (
         <NewsPanel news={news} candles={stock.candles} loading={newsLoading} />

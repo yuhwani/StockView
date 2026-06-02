@@ -82,6 +82,72 @@ def forecast(df: pd.DataFrame) -> dict:
     return {"price_now": round(price_now, 2), "horizons": items}
 
 
+def backtest(df: pd.DataFrame) -> dict:
+    """ML 방향예측대로 매매했을 때의 수익률을 단순보유와 비교 (out-of-sample).
+
+    방식(정직성):
+    - 앞 80%로만 학습하고, 뒤 20% 구간에서 매일 '내일 상승' 예측이면 보유(long),
+      아니면 현금(0%) 보유하는 long/flat 전략의 누적 수익률을 계산.
+    - 같은 구간 '단순 매수 후 보유(buy & hold)'와 비교.
+    - 수수료·세금·슬리피지는 미반영(참고용). 더 엄밀한 walk-forward는 TODO.
+    """
+    X, y, _ = make_dataset(df)
+    if len(X) < 250:
+        raise ValueError("백테스트에 필요한 데이터가 부족합니다 (최소 250거래일).")
+
+    split = int(len(X) * 0.8)
+    X_tr, X_te, y_tr = X.iloc[:split], X.iloc[split:], y.iloc[:split]
+
+    model = RandomForestClassifier(
+        n_estimators=200, max_depth=5, min_samples_leaf=20,
+        random_state=42, n_jobs=-1,
+    )
+    model.fit(X_tr, y_tr)
+    pred_up = model.predict_proba(X_te)[:, 1] >= 0.5
+
+    close = df["Close"].astype(float)
+    nxt_ret = (close.shift(-1) / close - 1)        # 각 날의 '다음날' 실현 수익률
+    test_ret = nxt_ret.loc[X_te.index].fillna(0).values
+
+    strat_daily = np.where(pred_up, test_ret, 0.0)  # 상승 예측일만 보유
+    strat_eq = np.cumprod(1 + strat_daily)
+    hold_eq = np.cumprod(1 + test_ret)
+    dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in X_te.index]
+    n = len(test_ret)
+
+    long_days = int(pred_up.sum())
+    hits = int((test_ret[pred_up] > 0).sum()) if long_days else 0
+
+    def mdd(eq):
+        peak = np.maximum.accumulate(eq)
+        return float((eq / peak - 1).min())
+
+    step = max(1, n // 120)
+    curve = [
+        {"date": dates[i],
+         "strategy": round(float(strat_eq[i] - 1), 4),
+         "hold": round(float(hold_eq[i] - 1), 4)}
+        for i in range(0, n, step)
+    ]
+    if (n - 1) % step != 0:
+        curve.append({"date": dates[-1],
+                      "strategy": round(float(strat_eq[-1] - 1), 4),
+                      "hold": round(float(hold_eq[-1] - 1), 4)})
+
+    return {
+        "period_start": dates[0],
+        "period_end": dates[-1],
+        "days": n,
+        "long_days": long_days,
+        "hit_rate": round(hits / long_days, 3) if long_days else 0.0,
+        "strategy_return": round(float(strat_eq[-1] - 1), 4),
+        "buyhold_return": round(float(hold_eq[-1] - 1), 4),
+        "strategy_mdd": round(mdd(strat_eq), 4),
+        "buyhold_mdd": round(mdd(hold_eq), 4),
+        "curve": curve,
+    }
+
+
 def quick_predict(df: pd.DataFrame) -> dict:
     """목록 미리보기용 경량 예측: 평가(백테스트) 없이 방향만 빠르게.
 
