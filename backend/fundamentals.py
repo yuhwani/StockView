@@ -58,12 +58,25 @@ def _kr(code: str) -> dict:
 
 
 # ── 미국: stockanalysis.com ─────────────────────────────────
+def _us_pbr(code: str) -> float | None:
+    """statistics 엔드포인트에서 PB Ratio 파싱."""
+    try:
+        url = f"https://stockanalysis.com/api/symbol/s/{code}/statistics"
+        d = requests.get(url, headers=_HEADERS, timeout=10).json().get("data", {})
+        for item in (d.get("ratios") or {}).get("data", []):
+            if (item.get("title") or "").lower() == "pb ratio":
+                return _num(item.get("value"))
+    except Exception:
+        pass
+    return None
+
+
 def _us(code: str) -> dict:
     url = f"https://stockanalysis.com/api/symbol/s/{code}/overview"
     d = requests.get(url, headers=_HEADERS, timeout=12).json().get("data", {})
     return {
         "per": _num(d.get("peRatio")),
-        "pbr": None,  # 무료 소스에 PBR 없음
+        "pbr": _us_pbr(code),
         "eps": _num(d.get("eps")),
         "forward_pe": _num(d.get("forwardPE")),
         "dividend_yield": _num(d.get("dividend")),  # "$1.04 (0.33%)" → 1.04 (참고용)

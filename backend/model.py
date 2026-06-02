@@ -291,6 +291,13 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
             score -= 1.5; reasons.append(("down", f"공시 악재: {ev['label']}"))
     score += dart_bonus
 
+    # 8c) 언론 노출 빈도 (주목도): 최근 7일 기사가 많고 + 감성이 긍정이면 가점
+    recent7d = sen.get("recent7d", 0)
+    if recent7d >= 8:
+        if (sscore or 0) >= 0:
+            score += 0.3
+        reasons.append(("flat", f"언론 주목도 높음 (최근 7일 {recent7d}건)"))
+
     # 9) 애널리스트 의견 (미국)
     rating = (val.get("analyst_rating") or "").lower()
     if "buy" in rating:
@@ -353,6 +360,55 @@ def stop_target(df: pd.DataFrame) -> dict:
     }
 
 
+def _lstm_accuracy(X, y, window: int = 20, epochs: int = 30) -> float | None:
+    """시퀀스 LSTM 검증 정확도 (과거 20일 → 다음날 방향). torch 없으면 None."""
+    try:
+        import torch
+        import torch.nn as nn
+    except Exception:
+        return None
+    try:
+        Xv = X.values.astype("float32")
+        yv = y.values.astype("float32")
+        if len(Xv) < window + 150:
+            return None
+        seqs = np.stack([Xv[i - window:i] for i in range(window, len(Xv))])
+        tgt = yv[window:]
+        split = int(len(seqs) * 0.8)
+        torch.manual_seed(42)
+        Xtr = torch.tensor(seqs[:split])
+        ytr = torch.tensor(tgt[:split]).unsqueeze(1)
+        Xte = torch.tensor(seqs[split:])
+        yte = tgt[split:].astype(int)
+
+        class _Net(nn.Module):
+            def __init__(self, nf):
+                super().__init__()
+                self.lstm = nn.LSTM(nf, 24, batch_first=True)
+                self.fc = nn.Linear(24, 1)
+
+            def forward(self, x):
+                o, _ = self.lstm(x)
+                return torch.sigmoid(self.fc(o[:, -1]))
+
+        m = _Net(Xv.shape[1])
+        opt = torch.optim.Adam(m.parameters(), lr=0.01)
+        lossf = nn.BCELoss()
+        m.train()
+        for _ in range(epochs):
+            opt.zero_grad()
+            loss = lossf(m(Xtr), ytr)
+            loss.backward()
+            opt.step()
+        m.eval()
+        with torch.no_grad():
+            pred = (m(Xte).squeeze().numpy() >= 0.5).astype(int)
+        return float((pred == yte).mean())
+    except Exception as e:
+        print(f"[lstm] 실패: {e}")
+        return None
+
+
 def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
     X, y, full = make_dataset(df)
 
@@ -398,11 +454,15 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
         print(f"[xgboost] 실패: {e}")
         xgb_acc = None
 
+    lstm_acc = _lstm_accuracy(X, y)  # 시퀀스 LSTM (torch, 실패 시 None)
+
     model_comparison = [
         {"name": "RandomForest", "accuracy": round(accuracy, 4)},
     ]
     if xgb_acc is not None:
         model_comparison.append({"name": "XGBoost", "accuracy": round(xgb_acc, 4)})
+    if lstm_acc is not None:
+        model_comparison.append({"name": "LSTM", "accuracy": round(lstm_acc, 4)})
     model_comparison.append({"name": "베이스라인", "accuracy": round(baseline, 4)})
 
     # 피처 중요도

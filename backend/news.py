@@ -90,7 +90,7 @@ def _fetch_google(name: str, limit: int) -> list[dict]:
     return out
 
 
-def get_news(code: str, region: str, name: str, limit: int = 10,
+def get_news(code: str, region: str, name: str, limit: int = 20,
              force: bool = False) -> list[dict]:
     """종목 뉴스 목록. 지역에 맞는 소스에서 가져오고 15분 캐싱."""
     key = f"{region}:{code}"

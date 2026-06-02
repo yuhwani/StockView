@@ -7,3 +7,6 @@ pandas
 numpy
 requests
 python-dotenv
+# LSTM 모델 비교용 (선택 — 없으면 LSTM만 건너뜀).
+# CPU 버전 설치 권장: pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch
