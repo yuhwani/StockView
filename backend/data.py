@@ -323,6 +323,43 @@ def _us_records(df: pd.DataFrame, limit: int) -> list[dict]:
 _OHLCV_TTL = 60 * 30  # 30분 (일봉이라 장중에도 이 정도면 충분)
 _ohlcv_cache: dict[str, tuple[float, pd.DataFrame]] = {}
 
+# 거시지표 (시장 상황) — 모든 종목 공통, 날짜로 병합해 ML 피처로 사용
+_macro_cache: dict[str, object] = {"df": None, "ts": 0.0}
+_MACRO_TTL = 60 * 60 * 6  # 6시간
+
+
+def get_macro() -> pd.DataFrame:
+    """거시지표 파생 피처 (코스피·나스닥·환율의 5/20일 변화). 실패 시 빈 DF."""
+    now = time.time()
+    if _macro_cache["df"] is not None and now - _macro_cache["ts"] <= _MACRO_TTL:
+        return _macro_cache["df"]
+
+    series = {}
+    for code, name in [("KS11", "kospi"), ("IXIC", "nasdaq"), ("USD/KRW", "fx")]:
+        try:
+            series[name] = fdr.DataReader(code, "2017-01-01")["Close"]
+        except Exception as e:
+            print(f"[macro] {code} 실패: {e}")
+
+    if not series:
+        out = pd.DataFrame()
+    else:
+        m = pd.DataFrame(series).sort_index()
+        out = pd.DataFrame(index=m.index)
+        if "kospi" in m:
+            out["mac_kospi20"] = m["kospi"].pct_change(20)
+        if "nasdaq" in m:
+            out["mac_nasdaq20"] = m["nasdaq"].pct_change(20)
+        if "fx" in m:
+            out["mac_fx20"] = m["fx"].pct_change(20)
+
+    _macro_cache["df"] = out
+    _macro_cache["ts"] = now
+    return out
+
+
+MACRO_COLUMNS = ["mac_kospi20", "mac_nasdaq20", "mac_fx20"]
+
 
 def get_ohlcv(code: str, start: str = "2018-01-01", force: bool = False) -> pd.DataFrame:
     """일봉 OHLCV 데이터. 인덱스는 Date. 한국·미국 코드 모두 지원.

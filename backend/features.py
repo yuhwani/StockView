@@ -9,6 +9,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+import data as _data  # 거시지표 병합용
+
 
 def rsi(close: pd.Series, period: int = 14) -> pd.Series:
     """RSI(상대강도지수): 최근 상승폭 대비 하락폭. 70↑ 과매수, 30↓ 과매도."""
@@ -50,14 +52,29 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     low_20 = df["Low"].rolling(20).min()
     out["pos_20"] = (close - low_20) / (high_20 - low_20).replace(0, np.nan)
 
+    # 거시지표(시장 상황): 코스피·나스닥·환율의 20일 변화 — 날짜로 병합, 없으면 0
+    try:
+        macro = _data.get_macro()
+    except Exception:
+        macro = pd.DataFrame()
+    for col in MACRO_COLUMNS:
+        if len(macro) and col in macro.columns:
+            out[col] = macro[col].reindex(out.index, method="ffill")
+        else:
+            out[col] = 0.0
+    out[MACRO_COLUMNS] = out[MACRO_COLUMNS].fillna(0.0)
+
     return out
 
 
-FEATURE_COLUMNS = [
+MACRO_COLUMNS = ["mac_kospi20", "mac_nasdaq20", "mac_fx20"]
+
+TECH_COLUMNS = [
     "ret_1", "ret_5", "ret_10",
     "ma5_ratio", "ma20_ratio", "ma60_ratio",
     "vol_10", "vol_20", "vol_ratio", "rsi_14", "pos_20",
 ]
+FEATURE_COLUMNS = TECH_COLUMNS + MACRO_COLUMNS
 
 
 def make_dataset(df: pd.DataFrame):
