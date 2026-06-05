@@ -58,6 +58,25 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     out["pos_252"] = (close - low_252) / (high_252 - low_252).replace(0, np.nan)
     out["pos_252"] = out["pos_252"].clip(0, 1)
 
+    # 120일(약 6개월) 장기 추세
+    out["ma120_ratio"] = close / close.rolling(120, min_periods=60).mean() - 1
+
+    # MACD(12,26,9) — 추세 전환·모멘텀. 히스토그램 부호 변화로 골든/데드크로스 감지
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    macd = ema12 - ema26
+    macd_sig = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - macd_sig
+    out["macd_hist_norm"] = hist / close.replace(0, np.nan)  # ML 피처(가격 정규화)
+    out["macd_gc"] = ((hist > 0) & (hist.shift(1) <= 0)).astype(float)  # 상승 전환(골든크로스)
+    out["macd_dc"] = ((hist < 0) & (hist.shift(1) >= 0)).astype(float)  # 하락 전환(데드크로스)
+
+    # 지지/저항 — 직전 60일(약 3개월) 고점 돌파 / 저점 이탈 (당일 제외)
+    hi60 = df["High"].rolling(60, min_periods=20).max().shift(1)
+    lo60 = df["Low"].rolling(60, min_periods=20).min().shift(1)
+    out["breakout_up"] = (close > hi60).astype(float)
+    out["breakdown"] = (close < lo60).astype(float)
+
     # 거시지표(시장 상황): 코스피·나스닥·환율의 20일 변화 — 날짜로 병합, 없으면 0
     try:
         macro = _data.get_macro()
@@ -77,8 +96,9 @@ MACRO_COLUMNS = ["mac_kospi20", "mac_nasdaq20", "mac_fx20"]
 
 TECH_COLUMNS = [
     "ret_1", "ret_5", "ret_10",
-    "ma5_ratio", "ma20_ratio", "ma60_ratio",
+    "ma5_ratio", "ma20_ratio", "ma60_ratio", "ma120_ratio",
     "vol_10", "vol_20", "vol_ratio", "rsi_14", "pos_20", "pos_252",
+    "macd_hist_norm",
 ]
 FEATURE_COLUMNS = TECH_COLUMNS + MACRO_COLUMNS
 

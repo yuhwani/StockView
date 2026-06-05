@@ -197,7 +197,8 @@ def quick_signal(df: pd.DataFrame, extras: dict | None = None) -> dict | None:
     m.fit(X, y)
     last = full[FEATURE_COLUMNS].iloc[[-1]]
     proba = float(m.predict_proba(last)[0][1])
-    return investment_signal(last.iloc[0], proba, 0.05, extras)  # edge 양수로 패널티 회피
+    # 신호 근거는 전체 피처(이진 신호 포함) 행을 넘김. 예측은 FEATURE_COLUMNS만 사용.
+    return investment_signal(full.iloc[-1], proba, 0.05, extras)  # edge 양수로 패널티 회피
 
 
 def investment_signal(row, proba_up: float, edge: float, extras: dict | None = None) -> dict:
@@ -278,6 +279,27 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     if v20 >= 0.05:
         score -= 0.2
         reasons.append(("down", f"가격이 하루에도 {v20:.1%}씩 크게 출렁임 → 나눠 사고 손절선 정하기"))
+
+    # 4e) 장기(약 6개월) 추세 — 120일선
+    ma120 = row.get("ma120_ratio")
+    if ma120 is not None and not pd.isna(ma120):
+        ma120 = float(ma120)
+        if ma120 > 0.02:
+            score += 0.5; reasons.append(("up", "6개월 장기 흐름도 우상향 → 큰 추세가 좋음"))
+        elif ma120 < -0.02:
+            score -= 0.5; reasons.append(("down", "6개월 장기 흐름이 우하향 → 큰 추세가 약함"))
+
+    # 4f) MACD — 추세 전환 신호 (오늘 막 방향이 바뀐 경우)
+    if float(row.get("macd_gc", 0) or 0) > 0:
+        score += 0.7; reasons.append(("up", "단기 흐름이 상승으로 막 돌아섬 (상승 전환 신호)"))
+    elif float(row.get("macd_dc", 0) or 0) > 0:
+        score -= 0.7; reasons.append(("down", "단기 흐름이 하락으로 막 돌아섬 (하락 전환 신호)"))
+
+    # 4g) 지지/저항 돌파 — 최근 3개월 고점 돌파 / 저점 이탈
+    if float(row.get("breakout_up", 0) or 0) > 0:
+        score += 0.7; reasons.append(("up", "최근 3개월 고점을 뚫음 (저항 돌파 → 강한 상승 신호)"))
+    elif float(row.get("breakdown", 0) or 0) > 0:
+        score -= 0.7; reasons.append(("down", "최근 3개월 저점을 깸 (지지 이탈 → 약세 신호)"))
 
     val = extras.get("valuation") or {}
     sup = extras.get("supply") or {}
@@ -529,7 +551,7 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
     proba_up = float(model_full.predict_proba(last_features)[0][1])
 
     edge = accuracy - baseline
-    signal = investment_signal(last_features.iloc[0], proba_up, edge, extras)
+    signal = investment_signal(full.iloc[-1], proba_up, edge, extras)
 
     return {
         "prediction": {
