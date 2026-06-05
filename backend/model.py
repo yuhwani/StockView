@@ -11,11 +11,35 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from xgboost import XGBClassifier
 
 from features import FEATURE_COLUMNS, build_features, make_dataset
+
+
+def _fit_proba_model(X, y, n_estimators: int = 120):
+    """확률 보정(calibration)을 적용한 RandomForest를 학습해 반환.
+
+    raw 확률은 '55%'라 해도 실제 적중률과 어긋날 수 있다. CalibratedClassifierCV로
+    '모델 확률 → 실제 빈도' 매핑을 보정해 '상승확률 55%'가 진짜 55%에 가깝게 만든다.
+    데이터가 적거나 한쪽 클래스만 있으면 보정 없이 일반 RF로 폴백.
+    """
+    base = RandomForestClassifier(
+        n_estimators=n_estimators, max_depth=5, min_samples_leaf=20,
+        random_state=42, n_jobs=-1,
+    )
+    try:
+        if len(X) >= 600 and getattr(y, "nunique", lambda: 2)() > 1:
+            method = "isotonic" if len(X) >= 1500 else "sigmoid"
+            clf = CalibratedClassifierCV(base, method=method, cv=3)
+            clf.fit(X, y)
+            return clf
+    except Exception as e:
+        print(f"[model] 확률 보정 실패, 일반 RF로 대체: {e}")
+    base.fit(X, y)
+    return base
 
 
 # 다기간 예측 horizon (거래일, 라벨)
@@ -190,11 +214,7 @@ def quick_signal(df: pd.DataFrame, extras: dict | None = None) -> dict | None:
     X, y, full = make_dataset(df)
     if len(X) < 200:
         return None
-    m = RandomForestClassifier(
-        n_estimators=120, max_depth=5, min_samples_leaf=20,
-        random_state=42, n_jobs=-1,
-    )
-    m.fit(X, y)
+    m = _fit_proba_model(X, y, n_estimators=120)  # 확률 보정 적용
     last = full[FEATURE_COLUMNS].iloc[[-1]]
     proba = float(m.predict_proba(last)[0][1])
     # 신호 근거는 전체 피처(이진 신호 포함) 행을 넘김. 예측은 FEATURE_COLUMNS만 사용.
@@ -602,12 +622,8 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
         reverse=True,
     )
 
-    # 전체 데이터로 다시 학습 후 '내일' 예측
-    model_full = RandomForestClassifier(
-        n_estimators=300, max_depth=5, min_samples_leaf=20,
-        random_state=42, n_jobs=-1,
-    )
-    model_full.fit(X, y)
+    # 전체 데이터로 다시 학습 후 '내일' 예측 (확률 보정 적용)
+    model_full = _fit_proba_model(X, y, n_estimators=300)
 
     last_features = full[FEATURE_COLUMNS].iloc[[-1]]
     proba_up = float(model_full.predict_proba(last_features)[0][1])
