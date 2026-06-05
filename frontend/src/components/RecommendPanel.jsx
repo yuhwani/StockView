@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getRecommendations } from "../api";
 
 // 오늘의 추천 — 배치가 미리 계산한 순위를 읽어 보여준다.
-export default function RecommendPanel({ onSelectStock }) {
+export default function RecommendPanel({ onSelectStock, watchlist }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,6 +60,18 @@ export default function RecommendPanel({ onSelectStock }) {
                 <Ret label="2주전" v={b.ret10} />
                 <Ret label="한달전" v={b.ret20} />
               </div>
+              {watchlist && (
+                <button
+                  className={`star-btn ${watchlist.isFav(b.code) ? "on" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    watchlist.toggle(b);
+                  }}
+                  title={watchlist.isFav(b.code) ? "관심종목 제거" : "관심종목 추가"}
+                >
+                  {watchlist.isFav(b.code) ? "★" : "☆"}
+                </button>
+              )}
             </div>
           ))}
         </div>

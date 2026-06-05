@@ -17,7 +17,7 @@ export default function HomePage() {
         <StockLists onSelectStock={go} watchlist={watchlist} />
       </div>
 
-      <RecommendSidebar />
+      <RecommendSidebar watchlist={watchlist} />
     </div>
   );
 }

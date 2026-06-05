@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getRecommendations } from "../api";
 
 // 홈 오른쪽에 고정(sticky)되는 컴팩트 오늘의 추천. 스크롤해도 따라온다.
-export default function RecommendSidebar() {
+export default function RecommendSidebar({ watchlist }) {
   const [data, setData] = useState(null);
   const navigate = useNavigate();
 
@@ -38,6 +38,18 @@ export default function RecommendSidebar() {
                 <span className="rsl-name">
                   {b.region === "US" ? "🇺🇸" : "🇰🇷"} {b.name}
                 </span>
+                {watchlist && (
+                  <button
+                    className={`star-btn ${watchlist.isFav(b.code) ? "on" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      watchlist.toggle(b);
+                    }}
+                    title={watchlist.isFav(b.code) ? "관심종목 제거" : "관심종목 추가"}
+                  >
+                    {watchlist.isFav(b.code) ? "★" : "☆"}
+                  </button>
+                )}
               </div>
               <div className="rsl-rets">
                 <SideRet label="전날" v={b.ret1} />
