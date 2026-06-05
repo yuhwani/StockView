@@ -77,16 +77,29 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
     action = signal["action"] if signal else "관망"
     emoji = "🔴" if "매도" in action else ("🟢" if "매수" in action else "🟡")
     flag = "🇺🇸" if region == "US" else "🇰🇷"
-    lines = [f"{emoji} {flag} {name} ({code}) → {action}"]
-    lines.append("· 트리거: " + " / ".join(triggers))
+    arrow = "▲" if (chg or 0) > 0 else ("▼" if (chg or 0) < 0 else "·")
+
+    lines = [f"{emoji} {action}  |  {flag} {name} ({code})"]
     if price is not None:
-        chg_s = f" ({chg:+.1f}%)" if chg is not None else ""
-        lines.append(f"· 현재가: {_fmt_price(price, region)}{chg_s}")
+        chg_s = f"   {arrow} {chg:+.1f}% (전일대비)" if chg is not None else ""
+        lines.append(f"💰 {_fmt_price(price, region)}{chg_s}")
+
+    lines.append("")
+    lines.append("🔔 감지된 이벤트")
+    for t in triggers:
+        lines.append(f"   • {t}")
+
     if signal and signal.get("reasons"):
-        rs = [r["text"] for r in signal["reasons"][:3]]
-        lines.append("· 근거: " + " · ".join(rs))
+        lines.append("")
+        lines.append("📊 판단 근거")
+        for r in signal["reasons"][:3]:
+            lines.append(f"   • {r['text']}")
+
     if ai_text:
-        lines.append(f"🤖 AI 분석: {ai_text}")
+        lines.append("")
+        lines.append("🤖 AI 분석")
+        lines.append(f"   {ai_text}")
+
     return "\n".join(lines)
 
 
