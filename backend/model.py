@@ -399,6 +399,25 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     elif "sell" in rating:
         score -= 0.5; reasons.append(("down", "증권사들 의견: 매도/비중축소"))
 
+    # 10) 공매도 비중 (미국) — 하락 베팅이 많으면 주의
+    sp = val.get("short_pct")
+    if sp is not None:
+        if sp >= 10:
+            score -= 0.3; reasons.append(("down", f"공매도 비중 높음 (유통주식의 {sp:.0f}%) → 하락 베팅이 많음(주의)"))
+        elif sp >= 5:
+            reasons.append(("flat", f"공매도 비중이 다소 있음 ({sp:.0f}%)"))
+
+    # 11) 시장 전체 환경 (공포지수·금리) — 종목 불문 시장 분위기
+    reg = extras.get("regime") or {}
+    if reg.get("vix_level") == "high":
+        score -= 0.3; reasons.append(("down", f"시장 전체가 불안 (공포지수 {reg.get('vix')}) → 변동성 장세, 보수적으로"))
+    elif reg.get("vix_level") == "low":
+        score += 0.1; reasons.append(("up", f"시장이 안정적 (공포지수 {reg.get('vix')}) → 위험 선호에 우호적"))
+    if reg.get("rate_trend") == "up":
+        score -= 0.2; reasons.append(("down", "시장 금리가 오르는 추세 → 주식 가치 평가에 부담"))
+    elif reg.get("rate_trend") == "down":
+        score += 0.2; reasons.append(("up", "시장 금리가 내리는 추세 → 주식에 우호적"))
+
     # 점수 → 행동
     if score >= 3:
         action, tone, summary = "매수 우위", "buy", "여러 신호가 매수에 우호적입니다."

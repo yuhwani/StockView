@@ -361,6 +361,39 @@ def get_macro() -> pd.DataFrame:
 MACRO_COLUMNS = ["mac_kospi20", "mac_nasdaq20", "mac_fx20"]
 
 
+_regime_cache: dict[str, object] = {"v": None, "ts": 0.0}
+_REGIME_TTL = 60 * 60 * 3  # 3시간
+
+
+def get_market_regime() -> dict:
+    """시장 전체 환경: 공포지수(VIX)와 미국채 10년 금리 방향. 실패해도 None으로 안전."""
+    now = time.time()
+    if _regime_cache["v"] is not None and now - _regime_cache["ts"] <= _REGIME_TTL:
+        return _regime_cache["v"]
+
+    out = {"vix": None, "vix_level": None, "rate_10y": None, "rate_trend": None}
+    try:
+        vix = fdr.DataReader("VIX", "2024-01-01")["Close"].dropna()
+        v = float(vix.iloc[-1])
+        out["vix"] = round(v, 1)
+        out["vix_level"] = "high" if v >= 25 else ("low" if v <= 15 else "normal")
+    except Exception as e:
+        print(f"[regime] VIX 실패: {e}")
+    try:
+        s = fdr.DataReader("FRED:DGS10", "2024-01-01").iloc[:, 0].dropna()
+        cur = float(s.iloc[-1])
+        past = float(s.iloc[-21]) if len(s) > 21 else float(s.iloc[0])
+        out["rate_10y"] = round(cur, 2)
+        diff = cur - past  # 최근 약 1개월 금리 변화(%p)
+        out["rate_trend"] = "up" if diff >= 0.15 else ("down" if diff <= -0.15 else "flat")
+    except Exception as e:
+        print(f"[regime] 금리 실패: {e}")
+
+    _regime_cache["v"] = out
+    _regime_cache["ts"] = now
+    return out
+
+
 def get_ohlcv(code: str, start: str = "2018-01-01", force: bool = False) -> pd.DataFrame:
     """일봉 OHLCV 데이터. 인덱스는 Date. 한국·미국 코드 모두 지원.
 

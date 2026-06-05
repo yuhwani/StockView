@@ -171,7 +171,7 @@ def check_stock(code: str, state: dict) -> str | None:
             extras = {
                 "valuation": fund, "supply": fund.get("supply"),
                 "sentiment": sent, "dart_events": dart.detect_events(code),
-                "region": region,
+                "region": region, "regime": data.get_market_regime(),
             }
             signal = ml.quick_signal(df, extras)
     except Exception as e:

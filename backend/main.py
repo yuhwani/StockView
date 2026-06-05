@@ -136,7 +136,7 @@ def ai_summary(code: str):
         sent = sentiment.analyze(items)
         extras = {"valuation": fund, "supply": fund.get("supply"),
                   "sentiment": sent, "dart_events": dart.detect_events(code),
-                  "region": region}
+                  "region": region, "regime": data.get_market_regime()}
         signal = ml.quick_signal(df, extras)
         close = df["Close"].astype(float)
         chg = float(close.iloc[-1] / close.iloc[-2] - 1) * 100 if len(close) > 1 else None
@@ -168,6 +168,7 @@ def predict(code: str, refresh: int = 0):
             "sentiment": sent,
             "dart_events": dart_events,
             "region": region,
+            "regime": data.get_market_regime(),
         }
         result = ml.train_and_evaluate(df, extras)
     except ValueError as e:
