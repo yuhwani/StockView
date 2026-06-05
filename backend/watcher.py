@@ -180,10 +180,18 @@ def check_stock(code: str, state: dict) -> str | None:
     # AI 뉴스 분석 (키 있을 때만 — 트리거 발생 시에만 호출해 비용 절감)
     ai_text = None
     try:
+        fund = fundamentals.get_fundamentals(code, region)
+        context = {
+            "roe": fund.get("roe"), "op_margin": fund.get("op_margin"),
+            "debt_ratio": fund.get("debt_ratio"), "rev_growth": fund.get("rev_growth"),
+            "per": fund.get("per"), "pbr": fund.get("pbr"), "sector": fund.get("sector"),
+            "disclosures": [d["title"] for d in dart.get_disclosures(code)[:5]] if region == "KR" else [],
+        }
         ai_text = ai.analyze(
             name, code, region, [n.get("title", "") for n in items], chg,
             signal["action"] if signal else None,
             [r["text"] for r in signal["reasons"]] if signal else None,
+            context=context,
         )
     except Exception as e:
         print(f"[watcher] {code} AI 분석 실패: {e}")

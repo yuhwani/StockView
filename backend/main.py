@@ -126,7 +126,7 @@ def ai_summary(code: str):
     """Claude로 최근 뉴스를 읽어 근거 있는 매수/매도 한 줄 분석 (키 있을 때만)."""
     if not ai.is_enabled():
         return {"enabled": False, "summary": None,
-                "message": "AI 분석은 ANTHROPIC_API_KEY 설정 시 동작합니다."}
+                "message": "AI 분석은 GEMINI_API_KEY(무료) 또는 ANTHROPIC_API_KEY 설정 시 동작합니다."}
     region = data.get_region(code)
     name = data.get_name(code) or code
     try:
@@ -140,10 +140,18 @@ def ai_summary(code: str):
         signal = ml.quick_signal(df, extras)
         close = df["Close"].astype(float)
         chg = float(close.iloc[-1] / close.iloc[-2] - 1) * 100 if len(close) > 1 else None
+        disc = [d["title"] for d in dart.get_disclosures(code)[:5]] if region == "KR" else []
+        context = {
+            "roe": fund.get("roe"), "op_margin": fund.get("op_margin"),
+            "debt_ratio": fund.get("debt_ratio"), "rev_growth": fund.get("rev_growth"),
+            "per": fund.get("per"), "pbr": fund.get("pbr"), "sector": fund.get("sector"),
+            "disclosures": disc,
+        }
         summary = ai.analyze(
             name, code, region, [n.get("title", "") for n in items], chg,
             signal["action"] if signal else None,
             [r["text"] for r in signal["reasons"]] if signal else None,
+            context=context,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

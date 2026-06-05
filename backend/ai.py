@@ -39,14 +39,16 @@ else:
     _PROVIDER = None
 
 _SYSTEM = (
-    "너는 한국 주식 뉴스 분석가다. 주어진 [뉴스 헤드라인], [최근 등락], [기술적 신호]만 "
-    "근거로, 그 종목이 왜 움직일 수 있는지와 지금 매수/관망/매도 중 무엇을 고려할지 "
-    "한국어로 2~3문장으로 간결하게 평가하라.\n"
+    "너는 한국·미국 주식 분석가다. 주어진 [재무], [공시], [뉴스 헤드라인], [최근 등락], "
+    "[기술적 신호]만 근거로 다음을 한국어 3~4문장으로 평가하라: "
+    "① 지금 이 종목의 핵심 포인트, ② 사업 체력·경쟁력(이익률·ROE·성장성·재무안정성으로 판단), "
+    "③ 지금 매수/관망/매도 중 무엇을 고려할지.\n"
     "규칙:\n"
-    "1) 제공된 정보에 없는 사실을 절대 지어내지 마라. 헤드라인에 근거가 없으면 "
-    "'뉴스 근거가 부족하다'고 밝혀라.\n"
-    "2) 단정적 수익 보장 표현 금지. '참고' 수준으로.\n"
-    "3) 군더더기·서론 없이 분석 결과만 출력하라."
+    "1) 제공된 정보에 없는 사실(경영진 역량·경제적 해자·시장점유율 등)을 추측해 단정하지 마라. "
+    "재무 수치나 뉴스로 뒷받침될 때만 언급하고, 근거가 없으면 그 항목은 말하지 마라.\n"
+    "2) 일반인도 이해하도록 쉬운 말로. 전문용어는 풀어서.\n"
+    "3) 단정적 수익 보장 표현 금지. '참고' 수준으로.\n"
+    "4) 군더더기·서론 없이 분석만 출력하라."
 )
 
 _anthropic_client = None
@@ -68,16 +70,33 @@ def provider() -> str:
     return _PROVIDER or "키워드(폴백)"
 
 
-def _build_user(name, code, headlines, change_pct, action, reasons) -> str:
-    hl = "\n".join(f"- {h}" for h in headlines[:12])
+def _build_user(name, code, headlines, change_pct, action, reasons, context=None) -> str:
+    context = context or {}
+    hl = "\n".join(f"- {h}" for h in headlines[:12]) or "- (수집된 헤드라인 없음)"
     chg = f"{change_pct:+.1f}%" if change_pct is not None else "정보 없음"
     sig = action or "정보 없음"
-    rsn = " · ".join((reasons or [])[:4]) or "정보 없음"
+    rsn = " · ".join((reasons or [])[:5]) or "정보 없음"
+
+    fin = []
+    for label, key, unit in [("ROE", "roe", "%"), ("영업이익률", "op_margin", "%"),
+                             ("부채비율", "debt_ratio", "%"), ("매출성장(전년比)", "rev_growth", "%"),
+                             ("PER", "per", "배"), ("PBR", "pbr", "배")]:
+        v = context.get(key)
+        if v is not None:
+            fin.append(f"{label} {v:g}{unit}")
+    fin_s = ", ".join(fin) or "정보 없음"
+
+    sector = context.get("sector")
+    head = f"[종목] {name} ({code})" + (f" · 업종 {sector}" if sector else "")
+    disc = context.get("disclosures") or []
+    disc_s = "\n".join(f"- {d}" for d in disc[:5]) or "- (최근 주요 공시 없음)"
+
     return (
-        f"[종목] {name} ({code})\n"
+        f"{head}\n"
+        f"[재무] {fin_s}\n"
         f"[최근 등락] {chg}\n"
-        f"[기술적 신호] {sig}\n"
-        f"[신호 근거] {rsn}\n"
+        f"[기술적 신호] {sig} (근거: {rsn})\n"
+        f"[공시]\n{disc_s}\n"
         f"[뉴스 헤드라인]\n{hl}\n\n"
         "위 정보만 근거로 평가해줘."
     )
@@ -92,7 +111,7 @@ def _gemini_analyze(user: str) -> str | None:
         "system_instruction": {"parts": [{"text": _SYSTEM}]},
         "contents": [{"parts": [{"text": user}]}],
         "generationConfig": {
-            "maxOutputTokens": 500,
+            "maxOutputTokens": 700,
             "temperature": 0.4,
             # 2.5 계열은 thinking이 기본 ON → 출력 토큰을 소모해 답이 잘림. 꺼서 직접 답하게.
             "thinkingConfig": {"thinkingBudget": 0},
@@ -111,7 +130,7 @@ def _gemini_analyze(user: str) -> str | None:
 def _anthropic_analyze(user: str) -> str | None:
     resp = _anthropic_client.messages.create(
         model=_ANTHROPIC_MODEL,
-        max_tokens=400,
+        max_tokens=600,
         system=_SYSTEM,
         messages=[{"role": "user", "content": user}],
     )
@@ -121,11 +140,11 @@ def _anthropic_analyze(user: str) -> str | None:
 
 def analyze(name: str, code: str, region: str, headlines: list[str],
             change_pct: float | None, action: str | None,
-            reasons: list[str] | None) -> str | None:
-    """헤드라인 등을 근거로 한 줄 분석. 키 없거나 실패 시 None."""
-    if _PROVIDER is None or not headlines:
+            reasons: list[str] | None, context: dict | None = None) -> str | None:
+    """헤드라인·재무·공시를 근거로 짧은 분석. 키 없거나 근거 없으면 None."""
+    if _PROVIDER is None or (not headlines and not context):
         return None
-    user = _build_user(name, code, headlines, change_pct, action, reasons)
+    user = _build_user(name, code, headlines, change_pct, action, reasons, context)
     try:
         if _PROVIDER == "gemini":
             return _gemini_analyze(user)
