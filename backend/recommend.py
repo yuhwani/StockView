@@ -30,6 +30,7 @@ import FinanceDataReader as fdr  # noqa: E402
 import pandas as pd  # noqa: E402
 
 import data  # noqa: E402
+import notify  # noqa: E402
 from features import rsi  # noqa: E402
 
 OUT = HERE / "recommendations.json"
@@ -135,11 +136,83 @@ def screen(df: pd.DataFrame) -> dict | None:
     }
 
 
+def _fmt_price(v, region):
+    if v is None:
+        return "-"
+    return f"${v:,.2f}" if region == "US" else f"{int(round(v)):,}원"
+
+
+def _fmt_pct(v):
+    if v is None:
+        return "-"
+    return f"{'+' if v >= 0 else ''}{v * 100:.1f}%"
+
+
+def _ai_oneliner(top):
+    """1등 종목에 대한 AI 한 줄 분석 (키 있을 때만, 실패 시 None)."""
+    try:
+        import ai
+        if not ai.is_enabled():
+            return None
+        import dart
+        import fundamentals
+        import news as news_mod
+        code, region, name = top["code"], top["region"], top["name"]
+        fund = fundamentals.get_fundamentals(code, region)
+        items = news_mod.get_news(code, region, name)
+        ctx = {
+            "roe": fund.get("roe"), "op_margin": fund.get("op_margin"),
+            "debt_ratio": fund.get("debt_ratio"), "rev_growth": fund.get("rev_growth"),
+            "per": fund.get("per"), "pbr": fund.get("pbr"), "sector": fund.get("sector"),
+            "disclosures": [d["title"] for d in dart.get_disclosures(code)[:5]] if region == "KR" else [],
+        }
+        return ai.analyze(name, code, region, [n.get("title", "") for n in items],
+                          top.get("ret1", 0) * 100, "추천 1위", top.get("reasons"), context=ctx)
+    except Exception as e:
+        print(f"[recommend] AI 한 줄 실패: {e}")
+        return None
+
+
+def notify_top(out: dict):
+    """오늘의 추천 1등을 텔레그램(또는 콘솔)으로 발송."""
+    buys = out.get("buys", [])
+    if not buys:
+        print("[recommend] 추천이 없어 알림 생략")
+        return
+    top = buys[0]
+    region = top["region"]
+    flag = "🇺🇸" if region == "US" else "🇰🇷"
+    lines = [f"🏆 오늘의 추천 1등 ({out['date']})", ""]
+    lines.append(f"{flag} {top['name']} ({top['code']})")
+    lines.append(f"💰 {_fmt_price(top['price'], region)}")
+    lines.append(f"📈 전날 {_fmt_pct(top.get('ret1'))} · 1주 {_fmt_pct(top.get('ret5'))} "
+                 f"· 한달 {_fmt_pct(top.get('ret20'))}")
+    if top.get("reasons"):
+        lines.append("")
+        lines.append("📊 선정 이유")
+        for r in top["reasons"]:
+            lines.append(f"   • {r}")
+    ai_text = _ai_oneliner(top)
+    if ai_text:
+        lines.append("")
+        lines.append("🤖 AI 분석")
+        lines.append(f"   {ai_text}")
+    if len(buys) > 1:
+        lines.append("")
+        lines.append("그 외 상위")
+        for b in buys[1:5]:
+            bf = "🇺🇸" if b["region"] == "US" else "🇰🇷"
+            lines.append(f"   {b['rank']}. {bf} {b['name']} (한달 {_fmt_pct(b.get('ret20'))})")
+    notify.send("\n".join(lines))
+    print("[recommend] 1등 알림 발송 완료")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="테스트용 상위 N개만")
     ap.add_argument("--kr", type=int, default=N_KR)
     ap.add_argument("--us", type=int, default=N_US)
+    ap.add_argument("--no-notify", action="store_true", help="텔레그램 1등 알림 끄기")
     args = ap.parse_args()
 
     uni = build_universe(args.kr, args.us)
@@ -176,6 +249,10 @@ def main():
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"완료: {len(scored)}개 중 상위 {len(buys)}개 저장 → {OUT.name} "
           f"({time.time()-t0:.0f}s)")
+
+    # 1등 텔레그램 알림 (테스트(--limit)·--no-notify 시 생략)
+    if not args.no_notify and not args.limit:
+        notify_top(out)
 
 
 if __name__ == "__main__":
