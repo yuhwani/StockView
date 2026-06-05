@@ -90,9 +90,13 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
         lines.append(f"   • {t}")
 
     if signal and signal.get("reasons"):
+        # 방향성(매수/매도) 근거를 우선 노출, 중립은 보조. 최대 5개.
+        rs = signal["reasons"]
+        directional = [r for r in rs if r.get("dir") in ("up", "down")]
+        shown = (directional or rs)[:5]
         lines.append("")
         lines.append("📊 판단 근거")
-        for r in signal["reasons"][:3]:
+        for r in shown:
             lines.append(f"   • {r['text']}")
 
     if ai_text:
