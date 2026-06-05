@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _GEMINI_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
-_GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash").strip()
+_GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
 _ANTHROPIC_KEY = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
 _ANTHROPIC_MODEL = (os.environ.get("ANTHROPIC_MODEL") or "claude-opus-4-8").strip()
 
@@ -91,7 +91,12 @@ def _gemini_analyze(user: str) -> str | None:
     body = {
         "system_instruction": {"parts": [{"text": _SYSTEM}]},
         "contents": [{"parts": [{"text": user}]}],
-        "generationConfig": {"maxOutputTokens": 400, "temperature": 0.4},
+        "generationConfig": {
+            "maxOutputTokens": 500,
+            "temperature": 0.4,
+            # 2.5 계열은 thinking이 기본 ON → 출력 토큰을 소모해 답이 잘림. 꺼서 직접 답하게.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     r = requests.post(url, json=body, timeout=20)
     if r.status_code != 200:
