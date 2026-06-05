@@ -31,6 +31,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     out["ret_1"] = close.pct_change(1)
     out["ret_5"] = close.pct_change(5)
     out["ret_10"] = close.pct_change(10)
+    out["ret_20"] = close.pct_change(20)  # 상대강도 계산용 (ML 피처 아님)
 
     # 이동평균 대비 현재가 (추세)
     out["ma5_ratio"] = close / close.rolling(5).mean() - 1

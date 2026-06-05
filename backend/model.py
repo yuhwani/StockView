@@ -418,6 +418,23 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     elif reg.get("rate_trend") == "down":
         score += 0.2; reasons.append(("up", "시장 금리가 내리는 추세 → 주식에 우호적"))
 
+    # 12) 시장 대비 상대강도 — 같은 기간 지수보다 강한지 (업종/섹터 맥락)
+    region = extras.get("region")
+    ret20 = row.get("ret_20")
+    mkt = row.get("mac_nasdaq20") if region == "US" else row.get("mac_kospi20")
+    if (ret20 is not None and not pd.isna(ret20)
+            and mkt is not None and not pd.isna(mkt) and float(mkt) != 0):
+        rel = float(ret20) - float(mkt)
+        if rel >= 0.05:
+            score += 0.5; reasons.append(("up", f"최근 한 달 시장지수보다 +{rel * 100:.0f}%p 더 오름 → 시장보다 강함"))
+        elif rel <= -0.05:
+            score -= 0.5; reasons.append(("down", f"최근 한 달 시장지수보다 {rel * 100:.0f}%p 부진 → 시장보다 약함"))
+
+    # 업종/섹터 (미국) — 점수엔 반영 않고 참고 정보로 표시
+    sector = val.get("sector")
+    if sector:
+        reasons.append(("flat", f"업종: {sector}"))
+
     # 점수 → 행동
     if score >= 3:
         action, tone, summary = "매수 우위", "buy", "여러 신호가 매수에 우호적입니다."
