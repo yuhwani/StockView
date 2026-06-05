@@ -318,6 +318,32 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
         elif pbr > 5:
             score -= 0.3; reasons.append(("down", f"회사 순자산보다 주가가 꽤 높음 (PBR {pbr:.1f})"))
 
+    # 5b) 재무 건전성 (ROE·영업이익률·부채비율·매출성장) — 기업 체력
+    roe = val.get("roe")
+    if roe is not None:
+        if roe >= 15:
+            score += 0.5; reasons.append(("up", f"자기자본 대비 이익률 높음 (ROE {roe:.0f}%) → 돈을 잘 버는 회사"))
+        elif roe < 0:
+            score -= 0.5; reasons.append(("down", f"자기자본 대비 이익이 마이너스 (ROE {roe:.0f}%) → 적자"))
+    opm = val.get("op_margin")
+    if opm is not None:
+        if opm >= 15:
+            score += 0.3; reasons.append(("up", f"영업이익률이 높음 ({opm:.0f}%) → 본업에서 남는 게 많음"))
+        elif opm < 0:
+            score -= 0.3; reasons.append(("down", f"영업이익률이 마이너스 ({opm:.0f}%) → 본업이 적자"))
+    dr = val.get("debt_ratio")
+    if dr is not None:
+        if dr >= 200:
+            score -= 0.4; reasons.append(("down", f"빚이 많음 (부채비율 {dr:.0f}%) → 재무 부담"))
+        elif dr <= 80:
+            score += 0.2; reasons.append(("up", f"빚이 적음 (부채비율 {dr:.0f}%) → 재무 안정적"))
+    rg = val.get("rev_growth")
+    if rg is not None:
+        if rg >= 15:
+            score += 0.4; reasons.append(("up", f"매출이 1년 전보다 +{rg:.0f}% 성장 → 회사가 커지는 중"))
+        elif rg <= -10:
+            score -= 0.4; reasons.append(("down", f"매출이 1년 전보다 {rg:.0f}% 줄어듦 → 외형 위축"))
+
     # 6) 수급 (외국인·기관 순매수, 한국)
     fn, inn = sup.get("foreign_net"), sup.get("inst_net")
     if fn is not None and inn is not None:

@@ -26,6 +26,38 @@ def _num(s) -> float | None:
 
 
 # ── 한국: 네이버 ────────────────────────────────────────────
+def _kr_financials(code: str) -> dict:
+    """연간 재무제표에서 ROE·부채비율·영업이익률·매출성장률(실적 기준)."""
+    out = {"roe": None, "debt_ratio": None, "op_margin": None, "rev_growth": None}
+    try:
+        url = f"https://m.stock.naver.com/api/stock/{code}/finance/annual"
+        fi = requests.get(url, headers=_HEADERS, timeout=12).json()["financeInfo"]
+        # 추정치(isConsensus=Y) 제외한 '실적' 연도만 (과거→최근 순)
+        actual = [t["key"] for t in fi["trTitleList"] if t.get("isConsensus") != "Y"]
+        rows = {r["title"]: r["columns"] for r in fi["rowList"]}
+
+        def latest(title):
+            cols = rows.get(title, {})
+            for k in reversed(actual):  # 최근 실적부터
+                v = cols.get(k, {}).get("value")
+                if v not in (None, "", "-"):
+                    return _num(v)
+            return None
+
+        out["roe"] = latest("ROE")
+        out["debt_ratio"] = latest("부채비율")
+        out["op_margin"] = latest("영업이익률")
+        # 매출성장률: 최신 실적 ÷ 직전 실적
+        rev = rows.get("매출액", {})
+        seq = [_num(rev[k]["value"]) for k in actual
+               if rev.get(k, {}).get("value") not in (None, "", "-")]
+        if len(seq) >= 2 and seq[-2]:
+            out["rev_growth"] = (seq[-1] / seq[-2] - 1) * 100
+    except Exception as e:
+        print(f"[fundamentals] {code} 재무 파싱 실패: {e}")
+    return out
+
+
 def _kr(code: str) -> dict:
     url = f"https://m.stock.naver.com/api/stock/{code}/integration"
     d = requests.get(url, headers=_HEADERS, timeout=12).json()
@@ -41,8 +73,11 @@ def _kr(code: str) -> dict:
         "week52_low": _num(info.get("lowPriceOf52Weeks")),
         "analyst_target": None,
         "analyst_rating": None,
+        "short_pct": None,
+        "sector": None,
         "supply": None,
     }
+    out.update(_kr_financials(code))
 
     # 수급: 최근 5거래일 외국인·기관 순매수 합 (주식수)
     trend = d.get("dealTrendInfos", [])[:5]
@@ -58,25 +93,41 @@ def _kr(code: str) -> dict:
 
 
 # ── 미국: stockanalysis.com ─────────────────────────────────
-def _us_pbr(code: str) -> float | None:
-    """statistics 엔드포인트에서 PB Ratio 파싱."""
+def _us_statistics(code: str) -> dict:
+    """statistics에서 PBR·ROE·부채비율·영업이익률·공매도비중 추출."""
+    out = {"pbr": None, "roe": None, "debt_ratio": None,
+           "op_margin": None, "short_pct": None}
     try:
         url = f"https://stockanalysis.com/api/symbol/s/{code}/statistics"
         d = requests.get(url, headers=_HEADERS, timeout=10).json().get("data", {})
-        for item in (d.get("ratios") or {}).get("data", []):
-            if (item.get("title") or "").lower() == "pb ratio":
-                return _num(item.get("value"))
-    except Exception:
-        pass
-    return None
+
+        def find(cat, title):
+            for item in (d.get(cat) or {}).get("data", []):
+                if (item.get("title") or "").lower() == title.lower():
+                    return _num(item.get("value"))
+            return None
+
+        out["pbr"] = find("ratios", "pb ratio")
+        out["roe"] = find("financialEfficiency", "return on equity (roe)")
+        out["op_margin"] = find("margins", "operating margin")
+        out["short_pct"] = find("shortSelling", "short % of float")
+        de = find("financialPosition", "debt / equity")  # 배수 → %로 환산
+        out["debt_ratio"] = de * 100 if de is not None else None
+    except Exception as e:
+        print(f"[fundamentals] {code} US statistics 실패: {e}")
+    return out
 
 
 def _us(code: str) -> dict:
     url = f"https://stockanalysis.com/api/symbol/s/{code}/overview"
     d = requests.get(url, headers=_HEADERS, timeout=12).json().get("data", {})
-    return {
+    # 섹터/업종 (infoTable)
+    sector = None
+    for it in d.get("infoTable", []) or []:
+        if it.get("t") == "Sector":
+            sector = it.get("v")
+    out = {
         "per": _num(d.get("peRatio")),
-        "pbr": _us_pbr(code),
         "eps": _num(d.get("eps")),
         "forward_pe": _num(d.get("forwardPE")),
         "dividend_yield": _num(d.get("dividend")),  # "$1.04 (0.33%)" → 1.04 (참고용)
@@ -86,8 +137,11 @@ def _us(code: str) -> dict:
         "analyst_target": _num(d.get("target")),
         "analyst_rating": (d.get("analysts") or None),  # "Buy"/"Hold"/"Sell"
         "beta": _num(d.get("beta")),
+        "sector": sector,
         "supply": None,
     }
+    out.update(_us_statistics(code))  # pbr·roe·debt·margin·short
+    return out
 
 
 def get_fundamentals(code: str, region: str, force: bool = False) -> dict:
