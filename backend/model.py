@@ -19,17 +19,10 @@ from xgboost import XGBClassifier
 from features import FEATURE_COLUMNS, build_features, make_dataset
 
 
-def _fit_proba_model(X, y, n_estimators: int = 120):
-    """확률 보정(calibration)을 적용한 RandomForest를 학습해 반환.
-
-    raw 확률은 '55%'라 해도 실제 적중률과 어긋날 수 있다. CalibratedClassifierCV로
-    '모델 확률 → 실제 빈도' 매핑을 보정해 '상승확률 55%'가 진짜 55%에 가깝게 만든다.
-    데이터가 적거나 한쪽 클래스만 있으면 보정 없이 일반 RF로 폴백.
+def _calibrate(base, X, y):
+    """확률 보정(calibration) 래핑. '모델 확률 → 실제 빈도' 매핑을 바로잡아
+    '상승확률 55%'가 진짜 55%에 가깝게 만든다. 데이터 적거나 단일 클래스면 일반 학습 폴백.
     """
-    base = RandomForestClassifier(
-        n_estimators=n_estimators, max_depth=5, min_samples_leaf=20,
-        random_state=42, n_jobs=-1,
-    )
     try:
         if len(X) >= 600 and getattr(y, "nunique", lambda: 2)() > 1:
             method = "isotonic" if len(X) >= 1500 else "sigmoid"
@@ -37,9 +30,36 @@ def _fit_proba_model(X, y, n_estimators: int = 120):
             clf.fit(X, y)
             return clf
     except Exception as e:
-        print(f"[model] 확률 보정 실패, 일반 RF로 대체: {e}")
+        print(f"[model] 확률 보정 실패, 일반 학습으로 대체: {e}")
     base.fit(X, y)
     return base
+
+
+def _ensemble_proba(X, y, last_row, rf_n: int = 120) -> float:
+    """RF + XGBoost의 '보정된' 상승확률을 평균낸 앙상블 확률.
+
+    성격이 다른 두 모델(배깅 RandomForest + 부스팅 XGBoost)을 평균해 단일 모델
+    편향을 줄인다. 각 모델은 확률 보정을 거친다. 한쪽 실패 시 나머지로, 둘 다 실패 시 0.5.
+    """
+    probs = []
+    try:
+        rf = RandomForestClassifier(
+            n_estimators=rf_n, max_depth=5, min_samples_leaf=20,
+            random_state=42, n_jobs=-1,
+        )
+        probs.append(float(_calibrate(rf, X, y).predict_proba(last_row)[0][1]))
+    except Exception as e:
+        print(f"[model] RF 확률 실패: {e}")
+    try:
+        xgb = XGBClassifier(
+            n_estimators=200, max_depth=4, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=0.8, eval_metric="logloss",
+            random_state=42, n_jobs=-1,
+        )
+        probs.append(float(_calibrate(xgb, X, y).predict_proba(last_row)[0][1]))
+    except Exception as e:
+        print(f"[model] XGBoost 확률 실패: {e}")
+    return sum(probs) / len(probs) if probs else 0.5
 
 
 # 다기간 예측 horizon (거래일, 라벨)
@@ -214,9 +234,8 @@ def quick_signal(df: pd.DataFrame, extras: dict | None = None) -> dict | None:
     X, y, full = make_dataset(df)
     if len(X) < 200:
         return None
-    m = _fit_proba_model(X, y, n_estimators=120)  # 확률 보정 적용
     last = full[FEATURE_COLUMNS].iloc[[-1]]
-    proba = float(m.predict_proba(last)[0][1])
+    proba = _ensemble_proba(X, y, last, rf_n=120)  # RF+XGBoost 보정 앙상블
     # 신호 근거는 전체 피처(이진 신호 포함) 행을 넘김. 예측은 FEATURE_COLUMNS만 사용.
     return investment_signal(full.iloc[-1], proba, 0.05, extras)  # edge 양수로 패널티 회피
 
@@ -622,11 +641,9 @@ def train_and_evaluate(df: pd.DataFrame, extras: dict | None = None) -> dict:
         reverse=True,
     )
 
-    # 전체 데이터로 다시 학습 후 '내일' 예측 (확률 보정 적용)
-    model_full = _fit_proba_model(X, y, n_estimators=300)
-
+    # 전체 데이터로 다시 학습 후 '내일' 예측 (RF+XGBoost 보정 앙상블)
     last_features = full[FEATURE_COLUMNS].iloc[[-1]]
-    proba_up = float(model_full.predict_proba(last_features)[0][1])
+    proba_up = _ensemble_proba(X, y, last_features, rf_n=300)
 
     edge = accuracy - baseline
     signal = investment_signal(full.iloc[-1], proba_up, edge, extras)
