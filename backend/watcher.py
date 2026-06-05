@@ -87,7 +87,6 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
         lines.append("· 근거: " + " · ".join(rs))
     if ai_text:
         lines.append(f"🤖 AI 분석: {ai_text}")
-    lines.append("※ 참고용 신호입니다. 최종 판단·책임은 본인.")
     return "\n".join(lines)
 
 
