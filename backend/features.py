@@ -52,6 +52,12 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     low_20 = df["Low"].rolling(20).min()
     out["pos_20"] = (close - low_20) / (high_20 - low_20).replace(0, np.nan)
 
+    # 52주(약 252거래일) 범위 내 위치 — 1에 가까우면 신고가권, 0이면 신저가권
+    high_252 = df["High"].rolling(252, min_periods=60).max()
+    low_252 = df["Low"].rolling(252, min_periods=60).min()
+    out["pos_252"] = (close - low_252) / (high_252 - low_252).replace(0, np.nan)
+    out["pos_252"] = out["pos_252"].clip(0, 1)
+
     # 거시지표(시장 상황): 코스피·나스닥·환율의 20일 변화 — 날짜로 병합, 없으면 0
     try:
         macro = _data.get_macro()
@@ -72,7 +78,7 @@ MACRO_COLUMNS = ["mac_kospi20", "mac_nasdaq20", "mac_fx20"]
 TECH_COLUMNS = [
     "ret_1", "ret_5", "ret_10",
     "ma5_ratio", "ma20_ratio", "ma60_ratio",
-    "vol_10", "vol_20", "vol_ratio", "rsi_14", "pos_20",
+    "vol_10", "vol_20", "vol_ratio", "rsi_14", "pos_20", "pos_252",
 ]
 FEATURE_COLUMNS = TECH_COLUMNS + MACRO_COLUMNS
 

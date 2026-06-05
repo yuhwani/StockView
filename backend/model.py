@@ -248,6 +248,37 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     elif r5 < -0.03:
         score -= 0.5; reasons.append(("down", f"최근 5일 {r5:.1%} 하락 모멘텀"))
 
+    # 4b) 거래량 (평소 대비) — 추세에 거래량이 실렸는지로 신뢰도 보강
+    vr = float(row.get("vol_ratio", 0) or 0)
+    if vr >= 0.5:  # 20일 평균 대비 +50% 이상
+        if r5 > 0 or ma20 > 0:
+            score += 0.5
+            reasons.append(("up", f"거래량 급증(평소比 +{vr:.0%}) 동반 상승 → 추세 신뢰도↑"))
+        elif r5 < 0 or ma20 < 0:
+            score -= 0.5
+            reasons.append(("down", f"거래량 급증(평소比 +{vr:.0%}) 동반 하락 → 매도세 강함"))
+        else:
+            reasons.append(("flat", f"거래량 급증(평소比 +{vr:.0%}) — 관심 집중"))
+    elif vr <= -0.4:
+        reasons.append(("flat", f"거래량 위축(평소比 {vr:.0%}) — 관심 저조"))
+
+    # 4c) 52주 내 위치 — 신고가권(강세 지속) / 신저가권(약세)
+    p252 = row.get("pos_252")
+    if p252 is not None and not pd.isna(p252):
+        p252 = float(p252)
+        if p252 >= 0.9:
+            score += 0.5
+            reasons.append(("up", f"52주 고가권(상위 {1 - p252:.0%} 이내) → 신고가 부근 강세"))
+        elif p252 <= 0.1:
+            score -= 0.4
+            reasons.append(("down", f"52주 저가권(하위 {p252:.0%}) → 신저가 부근 약세"))
+
+    # 4d) 변동성 — 과도하면 신뢰도 낮추고 분할매수·손절 강화 환기
+    v20 = float(row.get("vol_20", 0) or 0)
+    if v20 >= 0.05:
+        score -= 0.2
+        reasons.append(("down", f"변동성 큼(일변동 {v20:.1%}) — 분할매수·손절 강화 권장"))
+
     val = extras.get("valuation") or {}
     sup = extras.get("supply") or {}
     sen = extras.get("sentiment") or {}
