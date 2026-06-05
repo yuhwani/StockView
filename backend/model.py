@@ -213,54 +213,54 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
 
     # 1) ML 다음날 상승확률
     if proba_up >= 0.55:
-        score += 2; reasons.append(("up", f"ML 모델: 다음날 상승확률 {proba_up:.0%} (강세)"))
+        score += 2; reasons.append(("up", f"AI 예측: 내일 오를 가능성을 {proba_up:.0%}로 높게 봄"))
     elif proba_up >= 0.52:
-        score += 1; reasons.append(("up", f"ML 모델: 상승확률 {proba_up:.0%} (약한 강세)"))
+        score += 1; reasons.append(("up", f"AI 예측: 내일 오를 가능성을 {proba_up:.0%}로 약간 높게 봄"))
     elif proba_up <= 0.45:
-        score -= 2; reasons.append(("down", f"ML 모델: 상승확률 {proba_up:.0%} (약세)"))
+        score -= 2; reasons.append(("down", f"AI 예측: 내일 오를 가능성을 {proba_up:.0%}로 낮게 봄"))
     elif proba_up <= 0.48:
-        score -= 1; reasons.append(("down", f"ML 모델: 상승확률 {proba_up:.0%} (약한 약세)"))
+        score -= 1; reasons.append(("down", f"AI 예측: 내일 오를 가능성을 {proba_up:.0%}로 약간 낮게 봄"))
     else:
-        reasons.append(("flat", f"ML 모델: 상승확률 {proba_up:.0%} (중립)"))
+        reasons.append(("flat", f"AI 예측: 내일 방향은 반반 (오를 가능성 {proba_up:.0%})"))
 
     # 2) 추세 (20일·60일 이동평균 대비 위치)
     ma20, ma60 = float(row["ma20_ratio"]), float(row["ma60_ratio"])
     if ma20 > 0 and ma60 > 0:
-        score += 1.5; reasons.append(("up", "주가가 20일·60일 이동평균선 위 → 상승추세"))
+        score += 1.5; reasons.append(("up", "최근 한두 달 가격이 꾸준히 우상향 (상승 흐름)"))
     elif ma20 < 0 and ma60 < 0:
-        score -= 1.5; reasons.append(("down", "주가가 20일·60일 이동평균선 아래 → 하락추세"))
+        score -= 1.5; reasons.append(("down", "최근 한두 달 가격이 계속 우하향 (하락 흐름)"))
     else:
-        reasons.append(("flat", "이동평균선 혼조 → 추세 불명확"))
+        reasons.append(("flat", "최근 가격 흐름이 오락가락 (방향 불분명)"))
 
     # 3) RSI (과매수/과매도)
     rsi = float(row["rsi_14"])
     if rsi <= 30:
-        score += 1; reasons.append(("up", f"RSI {rsi:.0f} → 과매도 (반등 가능)"))
+        score += 1; reasons.append(("up", "단기간 많이 떨어져 바닥권 → 반등이 나올 수 있음"))
     elif rsi >= 70:
-        score -= 1; reasons.append(("down", f"RSI {rsi:.0f} → 과매수 (조정 주의)"))
+        score -= 1; reasons.append(("down", "단기간 많이 올라 과열권 → 잠시 쉬어갈 수 있음"))
     else:
-        reasons.append(("flat", f"RSI {rsi:.0f} → 중립 구간"))
+        reasons.append(("flat", "단기 과열·바닥 신호는 없음 (보통 구간)"))
 
     # 4) 최근 5일 모멘텀
     r5 = float(row["ret_5"])
     if r5 > 0.03:
-        score += 0.5; reasons.append(("up", f"최근 5일 +{r5:.1%} 상승 모멘텀"))
+        score += 0.5; reasons.append(("up", f"최근 5일간 +{r5:.1%} 올라 분위기가 좋음"))
     elif r5 < -0.03:
-        score -= 0.5; reasons.append(("down", f"최근 5일 {r5:.1%} 하락 모멘텀"))
+        score -= 0.5; reasons.append(("down", f"최근 5일간 {r5:.1%} 내려 분위기가 약함"))
 
     # 4b) 거래량 (평소 대비) — 추세에 거래량이 실렸는지로 신뢰도 보강
     vr = float(row.get("vol_ratio", 0) or 0)
     if vr >= 0.5:  # 20일 평균 대비 +50% 이상
         if r5 > 0 or ma20 > 0:
             score += 0.5
-            reasons.append(("up", f"거래량 급증(평소比 +{vr:.0%}) 동반 상승 → 추세 신뢰도↑"))
+            reasons.append(("up", f"평소보다 거래가 +{vr:.0%} 늘며 오름 → 상승에 힘이 실림"))
         elif r5 < 0 or ma20 < 0:
             score -= 0.5
-            reasons.append(("down", f"거래량 급증(평소比 +{vr:.0%}) 동반 하락 → 매도세 강함"))
+            reasons.append(("down", f"평소보다 거래가 +{vr:.0%} 늘며 내림 → 파는 힘이 강함"))
         else:
-            reasons.append(("flat", f"거래량 급증(평소比 +{vr:.0%}) — 관심 집중"))
+            reasons.append(("flat", f"평소보다 거래가 +{vr:.0%} 급증 → 관심이 몰림"))
     elif vr <= -0.4:
-        reasons.append(("flat", f"거래량 위축(평소比 {vr:.0%}) — 관심 저조"))
+        reasons.append(("flat", "거래가 평소보다 한산함 (관심 저조)"))
 
     # 4c) 52주 내 위치 — 신고가권(강세 지속) / 신저가권(약세)
     p252 = row.get("pos_252")
@@ -268,16 +268,16 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
         p252 = float(p252)
         if p252 >= 0.9:
             score += 0.5
-            reasons.append(("up", f"52주 고가권(상위 {1 - p252:.0%} 이내) → 신고가 부근 강세"))
+            reasons.append(("up", "최근 1년 중 가장 높은 가격대 → 강한 상승세"))
         elif p252 <= 0.1:
             score -= 0.4
-            reasons.append(("down", f"52주 저가권(하위 {p252:.0%}) → 신저가 부근 약세"))
+            reasons.append(("down", "최근 1년 중 가장 낮은 가격대 → 약세"))
 
     # 4d) 변동성 — 과도하면 신뢰도 낮추고 분할매수·손절 강화 환기
     v20 = float(row.get("vol_20", 0) or 0)
     if v20 >= 0.05:
         score -= 0.2
-        reasons.append(("down", f"변동성 큼(일변동 {v20:.1%}) — 분할매수·손절 강화 권장"))
+        reasons.append(("down", f"가격이 하루에도 {v20:.1%}씩 크게 출렁임 → 나눠 사고 손절선 정하기"))
 
     val = extras.get("valuation") or {}
     sup = extras.get("supply") or {}
@@ -287,54 +287,54 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     per, pbr = val.get("per"), val.get("pbr")
     if per and per > 0:
         if per < 10:
-            score += 0.5; reasons.append(("up", f"PER {per:.1f} → 저평가 매력"))
+            score += 0.5; reasons.append(("up", f"버는 이익에 비해 주가가 싼 편 (저평가, PER {per:.1f})"))
         elif per > 40:
-            score -= 0.5; reasons.append(("down", f"PER {per:.1f} → 고평가 부담"))
+            score -= 0.5; reasons.append(("down", f"버는 이익에 비해 주가가 비싼 편 (고평가, PER {per:.1f})"))
     if pbr and pbr > 0:
         if pbr < 1:
-            score += 0.5; reasons.append(("up", f"PBR {pbr:.2f} → 자산가치 이하"))
+            score += 0.5; reasons.append(("up", f"회사 순자산보다 주가가 낮음 (저평가, PBR {pbr:.2f})"))
         elif pbr > 5:
-            score -= 0.3; reasons.append(("down", f"PBR {pbr:.1f} → 고PBR"))
+            score -= 0.3; reasons.append(("down", f"회사 순자산보다 주가가 꽤 높음 (PBR {pbr:.1f})"))
 
     # 6) 수급 (외국인·기관 순매수, 한국)
     fn, inn = sup.get("foreign_net"), sup.get("inst_net")
     if fn is not None and inn is not None:
         if fn > 0 and inn > 0:
-            score += 1; reasons.append(("up", "최근 외국인·기관 동반 순매수 (수급 양호)"))
+            score += 1; reasons.append(("up", "외국인·기관(큰손)이 함께 사들이는 중 → 수급 양호"))
         elif fn < 0 and inn < 0:
-            score -= 1; reasons.append(("down", "최근 외국인·기관 동반 순매도 (수급 약화)"))
+            score -= 1; reasons.append(("down", "외국인·기관(큰손)이 함께 파는 중 → 수급 약화"))
         elif fn > 0 or inn > 0:
             who = "외국인" if fn > 0 else "기관"
-            score += 0.5; reasons.append(("up", f"최근 {who} 순매수"))
+            score += 0.5; reasons.append(("up", f"최근 {who}(큰손)이 사들이는 중"))
 
     # 7) 뉴스 감성
     sscore = sen.get("score")
     if sscore is not None and sen.get("total"):
         if sscore >= 0.3:
-            score += 1; reasons.append(("up", f"최근 뉴스 긍정 우세 (감성 {sscore:+.2f})"))
+            score += 1; reasons.append(("up", "최근 뉴스 분위기가 긍정적"))
         elif sscore >= 0.15:
-            score += 0.5; reasons.append(("up", f"뉴스 다소 긍정 (감성 {sscore:+.2f})"))
+            score += 0.5; reasons.append(("up", "최근 뉴스 분위기가 다소 긍정적"))
         elif sscore <= -0.3:
-            score -= 1; reasons.append(("down", f"최근 뉴스 부정 우세 (감성 {sscore:+.2f})"))
+            score -= 1; reasons.append(("down", "최근 뉴스 분위기가 부정적"))
         elif sscore <= -0.15:
-            score -= 0.5; reasons.append(("down", f"뉴스 다소 부정 (감성 {sscore:+.2f})"))
+            score -= 0.5; reasons.append(("down", "최근 뉴스 분위기가 다소 부정적"))
 
     # 8) 재료(이벤트): 뉴스 키워드 기반
     good_bonus = 0.0
     for ev in sen.get("events", []):
         if ev["tone"] == "good" and good_bonus < 1.0:
-            good_bonus += 0.5; reasons.append(("up", f"재료 감지: {ev['label']}"))
+            good_bonus += 0.5; reasons.append(("up", f"호재 뉴스: {ev['label']}"))
         elif ev["tone"] == "bad":
-            score -= 1; reasons.append(("down", f"악재 감지: {ev['label']}"))
+            score -= 1; reasons.append(("down", f"악재 뉴스: {ev['label']}"))
     score += good_bonus
 
     # 8b) DART 공시 기반 재료 (실제 공시라 뉴스보다 신뢰도 높음 → 가중치 ↑)
     dart_bonus = 0.0
     for ev in extras.get("dart_events", []):
         if ev["tone"] == "good" and dart_bonus < 1.5:
-            dart_bonus += 0.75; reasons.append(("up", f"공시: {ev['label']}"))
+            dart_bonus += 0.75; reasons.append(("up", f"회사 공식발표(공시) 호재: {ev['label']}"))
         elif ev["tone"] == "bad":
-            score -= 1.5; reasons.append(("down", f"공시 악재: {ev['label']}"))
+            score -= 1.5; reasons.append(("down", f"회사 공식발표(공시) 악재: {ev['label']}"))
     score += dart_bonus
 
     # 8c) 언론 노출 빈도 (주목도): 최근 7일 기사가 많고 + 감성이 긍정이면 가점
@@ -342,14 +342,14 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     if recent7d >= 8:
         if (sscore or 0) >= 0:
             score += 0.3
-        reasons.append(("flat", f"언론 주목도 높음 (최근 7일 {recent7d}건)"))
+        reasons.append(("flat", f"요즘 뉴스에 자주 등장 (최근 7일 {recent7d}건, 관심 높음)"))
 
     # 9) 애널리스트 의견 (미국)
     rating = (val.get("analyst_rating") or "").lower()
     if "buy" in rating:
-        score += 0.5; reasons.append(("up", f"애널리스트 컨센서스: {val['analyst_rating']}"))
+        score += 0.5; reasons.append(("up", "증권사들 의견: 매수 추천"))
     elif "sell" in rating:
-        score -= 0.5; reasons.append(("down", f"애널리스트 컨센서스: {val['analyst_rating']}"))
+        score -= 0.5; reasons.append(("down", "증권사들 의견: 매도/비중축소"))
 
     # 점수 → 행동
     if score >= 3:
@@ -368,8 +368,8 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     caveat = None
     if edge <= 0:
         confidence *= 0.6
-        caveat = ("이 종목에선 ML 모델이 과거 백테스트에서 베이스라인을 이기지 못했습니다. "
-                  "ML 예측보다 추세·RSI 같은 기술적 지표에 더 무게를 두고 판단하세요.")
+        caveat = ("이 종목은 AI 예측의 과거 적중률이 좋지 않았어요. "
+                  "AI 예측보다 가격 흐름·과열 여부 같은 기본 지표를 더 믿고 판단하세요.")
 
     return {
         "action": action,
