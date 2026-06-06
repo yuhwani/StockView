@@ -11,6 +11,8 @@ backend/watch.json
 backend/watch_state.json
 # KRX 목록 디스크 캐시 (KRX 차단 시 폴백용, 런타임 생성)
 backend/krx_listing.pkl
+# 알림 설정 (UI에서 저장, 런타임 생성)
+backend/alert_config.json
 *.egg-info/
 .pytest_cache/
 .env

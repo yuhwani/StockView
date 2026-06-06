@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import ai
+import alertconfig
 import dart
 import data
 import fundamentals
@@ -248,6 +249,18 @@ def get_watch():
         return json.loads(_WATCH_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {"codes": []}
+
+
+@app.get("/api/alert-config")
+def get_alert_config():
+    """알림 설정(임계값·발굴 옵션) 조회."""
+    return alertconfig.load()
+
+
+@app.post("/api/alert-config")
+def set_alert_config(patch: dict):
+    """알림 설정 갱신. 허용된 키만 반영·검증하고 저장한다. (워커가 다음 주기에 반영)"""
+    return alertconfig.save(patch)
 
 
 @app.get("/")
