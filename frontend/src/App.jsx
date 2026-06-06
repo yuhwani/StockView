@@ -12,6 +12,7 @@ import HomePage from "./pages/HomePage";
 import StockPage from "./pages/StockPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import PortfolioPage from "./pages/PortfolioPage";
+import SettingsPage from "./pages/SettingsPage";
 import AccountsPage from "./pages/AccountsPage";
 import { AccountsProvider, useAccounts } from "./useAccounts";
 import { useWatchlist } from "./useWatchlist";
@@ -57,6 +58,9 @@ function GatedLayout() {
             <Link to="/portfolio" className="mini-btn ghost">
               손익
             </Link>
+            <Link to="/settings" className="mini-btn ghost">
+              🔔 알림
+            </Link>
             <button
               className="mini-btn ghost"
               onClick={() => navigate("/")}
@@ -90,6 +94,7 @@ export default function App() {
             <Route path="/stock/:code" element={<StockPage />} />
             <Route path="/recommendations" element={<RecommendationsPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

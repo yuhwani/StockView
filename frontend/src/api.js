@@ -47,3 +47,13 @@ export const getLists = () => get(`/api/lists`);
 
 export const getList = (id, limit = 100) =>
   get(`/api/list/${id}?limit=${limit}`);
+
+// 알림 설정 (임계값·발굴 옵션)
+export const getAlertConfig = () => get(`/api/alert-config`);
+
+export const setAlertConfig = (patch) =>
+  fetch("/api/alert-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  }).then((r) => r.json());
