@@ -27,6 +27,7 @@ except Exception:
     pass
 
 import ai
+import alertconfig
 import data
 import dart
 import fundamentals
@@ -37,8 +38,6 @@ import sentiment
 
 WATCH_FILE = HERE / "watch.json"
 STATE_FILE = HERE / "watch_state.json"
-
-PRICE_MOVE = 0.05  # 일중 ±5% 이상이면 급등락 트리거
 
 
 def _load_json(path, default):
@@ -107,7 +106,7 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
     return "\n".join(lines)
 
 
-def check_stock(code: str, state: dict) -> str | None:
+def check_stock(code: str, state: dict, move_pct: float = 5.0) -> str | None:
     """한 종목 점검 → 알림 메시지(또는 None). 첫 점검은 baseline만 잡고 조용히."""
     region = data.get_region(code)
     name = data.get_name(code) or code
@@ -150,7 +149,7 @@ def check_stock(code: str, state: dict) -> str | None:
             prev = float(df["Close"].iloc[-2])
             chg = (price / prev - 1) * 100
             today = str(df.index[-1].date())
-            if abs(chg) >= PRICE_MOVE * 100 and st.get("price_date") != today:
+            if abs(chg) >= move_pct and st.get("price_date") != today:
                 st["price_date"] = today
                 triggers.append(f"급{'등' if chg > 0 else '락'} {chg:+.1f}%")
     except Exception:
@@ -199,28 +198,111 @@ def check_stock(code: str, state: dict) -> str | None:
     return _build_message(code, name, region, triggers, price, chg, signal, ai_text)
 
 
-def run_once() -> int:
-    codes = _load_json(WATCH_FILE, {}).get("codes", [])
-    if not codes:
-        print("[watcher] 감시할 종목이 없습니다 (관심종목·보유종목을 추가하세요).")
-        return 0
+# ETF·ETN·레버리지/인버스는 '발굴'에서 제외 (종목 발굴 기회가 아님)
+_ETF_HINTS = ("KODEX", "TIGER", "KBSTAR", "ARIRANG", "HANARO", "KOSEF", "KIWOOM",
+              "TIMEFOLIO", "ACE ", "SOL ", "PLUS ", "RISE ", "WON ", "마이티",
+              "인버스", "레버리지", "선물", "ETN", " 2X", " 3X",
+              "ProShares", "Direxion", "iShares", "SPDR", "Vanguard", "Invesco",
+              "ETF", "Leveraged", "Bull ", "Bear ")
+
+
+def _is_etf(name: str) -> bool:
+    return any(h.lower() in name.lower() for h in _ETF_HINTS)
+
+
+def _scan_candidates(cfg: dict) -> list[dict]:
+    """관심목록 외 '급등' 후보를 시장 목록(시총·등락률)에서 싸게 추려낸다."""
+    region = cfg.get("discovery_region", "KR")
+    move = cfg.get("discovery_move_pct", 8.0)
+    min_cap = cfg.get("discovery_min_marcap_eok", 3000) * 1e8  # 억원 → 원
+    out = []
+    try:
+        if region == "US":
+            df = data.get_us_marcap()
+            if df is not None and not df.empty:
+                d = df[(df["Marcap"] >= min_cap) & (df["ChangeRatio"] >= move)]
+                d = d.sort_values("ChangeRatio", ascending=False).head(30)
+                for r in d.itertuples():
+                    if _is_etf(str(r.Name)):
+                        continue
+                    out.append({"code": str(r.Code), "name": str(r.Name),
+                                "region": "US", "chg": float(r.ChangeRatio)})
+        else:
+            krx = data._krx()
+            if data._krx_ok(krx):
+                d = krx[(krx["Marcap"] >= min_cap) & (krx["ChagesRatio"] >= move)]
+                d = d.sort_values("ChagesRatio", ascending=False).head(30)
+                for r in d.itertuples():
+                    if _is_etf(str(r.Name)):
+                        continue
+                    out.append({"code": str(r.Code), "name": str(r.Name),
+                                "region": "KR", "chg": float(r.ChagesRatio)})
+    except Exception as e:
+        print(f"[watcher] 발굴 후보 스캔 실패: {e}")
+    return out[:20]
+
+
+def discovery_scan(state: dict, cfg: dict) -> list[str]:
+    """관심목록 '외' 급등 종목을 발굴해 알림 메시지를 만든다 (종목당 하루 1회)."""
+    watch = set(_load_json(WATCH_FILE, {}).get("codes", []))
+    dstate = state.setdefault("_discovery", {})
+    today = str(date.today())
+    cap = cfg.get("discovery_max_per_cycle", 3)
+    msgs = []
+    for c in _scan_candidates(cfg):
+        if len(msgs) >= cap:
+            break
+        code, region = c["code"], c["region"]
+        if code in watch or dstate.get(code) == today:
+            continue
+        dstate[code] = today  # 오늘 이미 발굴 → 중복 방지
+        try:
+            df = data.get_ohlcv(code, force=True)
+            fund = fundamentals.get_fundamentals(code, region)
+            extras = {"valuation": fund, "supply": fund.get("supply"),
+                      "region": region, "regime": data.get_market_regime()}
+            signal = ml.quick_signal(df, extras)
+            price = float(df["Close"].iloc[-1])
+            body = _build_message(code, c["name"], region,
+                                  [f"관심목록 외 급등 +{c['chg']:.1f}%"],
+                                  price, c["chg"], signal, None)
+            msgs.append("🔎 [발굴] 내가 모르던 급등 종목\n\n" + body)
+        except Exception as e:
+            print(f"[watcher] 발굴 {code} 실패: {e}")
+    return msgs
+
+
+def run_once(cfg: dict | None = None) -> int:
+    cfg = cfg or alertconfig.load()
     state = _load_json(STATE_FILE, {})
     sent = 0
-    for code in codes:
+
+    # 1) 관심·보유 종목 점검
+    for code in _load_json(WATCH_FILE, {}).get("codes", []):
         try:
-            msg = check_stock(code, state)
+            msg = check_stock(code, state, cfg.get("price_move_pct", 5.0))
             if msg:
                 notify.send(msg)
                 sent += 1
         except Exception as e:
             print(f"[watcher] {code} 점검 실패: {e}")
+
+    # 2) 관심목록 외 발굴 (설정 ON일 때)
+    if cfg.get("discovery_enabled"):
+        try:
+            for msg in discovery_scan(state, cfg):
+                notify.send(msg)
+                sent += 1
+        except Exception as e:
+            print(f"[watcher] 발굴 스캔 실패: {e}")
+
     _save_json(STATE_FILE, state)
     return sent
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--interval", type=int, default=180, help="점검 주기(초)")
+    ap.add_argument("--interval", type=int, default=0, help="점검 주기(초). 0이면 설정값 사용")
     ap.add_argument("--once", action="store_true")
     ap.add_argument("--test", action="store_true")
     args = ap.parse_args()
@@ -230,15 +312,21 @@ def main():
         print("텔레그램 발송:", ok, "(False면 .env 미설정 → 콘솔 출력)")
         return
 
+    cfg = alertconfig.load()
     ch = "텔레그램" if notify.enabled() else "콘솔(텔레그램 미설정)"
-    print(f"[watcher] 시작 — 주기 {args.interval}s, 알림채널: {ch}")
+    disc = "발굴 ON" if cfg.get("discovery_enabled") else "발굴 OFF"
     if args.once:
-        n = run_once()
+        print(f"[watcher] 1회 점검 — 알림채널: {ch}, {disc}")
+        n = run_once(cfg)
         print(f"[watcher] 1회 점검 완료, 알림 {n}건")
         return
+
+    interval = args.interval or cfg.get("interval_sec", 180)
+    print(f"[watcher] 시작 — 주기 {interval}s, 알림채널: {ch}, {disc}")
     while True:
+        cfg = alertconfig.load()  # 매 주기마다 설정 다시 읽기 (재시작 없이 반영)
         try:
-            n = run_once()
+            n = run_once(cfg)
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] 점검 완료, 알림 {n}건")
         except KeyboardInterrupt:
@@ -246,7 +334,7 @@ def main():
             break
         except Exception as e:
             print(f"[watcher] 오류: {e}")
-        time.sleep(args.interval)
+        time.sleep(args.interval or cfg.get("interval_sec", 180))
 
 
 if __name__ == "__main__":
