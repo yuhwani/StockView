@@ -54,6 +54,14 @@ export default function SettingsPage() {
             <input type="number" min="1" max="30" step="0.5" value={cfg.price_move_pct}
               onChange={(e) => upd("price_move_pct", +e.target.value)} />
           </Field>
+          <Field label="매수 추천 위주 (노이즈↓)"
+            hint="켜면: 급등은 '매수 신호+거래량'일 때만, 급락은 '매도 신호'일 때만 알림. 살/팔 만한 것만.">
+            <label className="switch">
+              <input type="checkbox" checked={!!cfg.buy_focus}
+                onChange={(e) => upd("buy_focus", e.target.checked)} />
+              <span>{cfg.buy_focus ? "켜짐" : "꺼짐"}</span>
+            </label>
+          </Field>
         </div>
 
         <div className="set-group">

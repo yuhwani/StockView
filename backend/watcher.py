@@ -106,8 +106,35 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
     return "\n".join(lines)
 
 
-def check_stock(code: str, state: dict, move_pct: float = 5.0) -> str | None:
-    """한 종목 점검 → 알림 메시지(또는 None). 첫 점검은 baseline만 잡고 조용히."""
+_BUY_ACTIONS = ("매수 우위", "약한 매수")
+_SELL_ACTIONS = ("매도 우위", "약한 매도")
+
+
+def _buy_worthy(signal) -> bool:
+    return bool(signal) and signal.get("action") in _BUY_ACTIONS
+
+
+def _sell_worthy(signal) -> bool:
+    return bool(signal) and signal.get("action") in _SELL_ACTIONS
+
+
+def _volume_surge(df, mult: float = 1.5) -> bool:
+    """오늘 거래량이 직전 20일 평균의 mult배 이상이면 '거래량 동반'(오늘 터진 것)."""
+    try:
+        v = df["Volume"].astype(float)
+        base = float(v.iloc[-21:-1].mean())  # 오늘 제외 직전 20일 평균
+        return base > 0 and float(v.iloc[-1]) / base >= mult
+    except Exception:
+        return False
+
+
+def check_stock(code: str, state: dict, move_pct: float = 5.0,
+                buy_focus: bool = True) -> str | None:
+    """한 종목 점검 → 알림 메시지(또는 None). 첫 점검은 baseline만 잡고 조용히.
+
+    buy_focus=True면 급등은 '매수 신호+거래량 동반'일 때만, 급락은 '매도 신호'일 때만
+    알림에 포함(살 만한/팔 만한 것만). 공시·뉴스 재료는 그대로(초기 catalyst).
+    """
     region = data.get_region(code)
     name = data.get_name(code) or code
     st = state.setdefault(code, {"seen": [], "price_date": None, "first": True})
@@ -140,8 +167,9 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0) -> str | None:
         if m and not first:
             triggers.append(f"뉴스 {'호재' if m[1]=='good' else '악재'}: {m[0]}")
 
-    # 3) 가격 급등락 (당일, 하루 1회)
+    # 3) 가격 급등락 (당일, 하루 1회) — buy_focus면 신호로 한 번 더 거른다
     price = chg = None
+    price_spike = None  # ("up"/"down", 트리거 문구)
     try:
         df = data.get_ohlcv(code, force=True)
         price = float(df["Close"].iloc[-1])
@@ -151,14 +179,15 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0) -> str | None:
             today = str(df.index[-1].date())
             if abs(chg) >= move_pct and st.get("price_date") != today:
                 st["price_date"] = today
-                triggers.append(f"급{'등' if chg > 0 else '락'} {chg:+.1f}%")
+                price_spike = ("up" if chg > 0 else "down",
+                               f"급{'등' if chg > 0 else '락'} {chg:+.1f}%")
     except Exception:
         df = None
 
     st["seen"] = list(seen)[-200:]  # 최근 200개만 유지
     st["first"] = False
 
-    if not triggers:
+    if not triggers and not price_spike:
         return None
 
     # 트리거 발생 → 종합 신호 계산 (이유 포함)
@@ -175,6 +204,19 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0) -> str | None:
             signal = ml.quick_signal(df, extras)
     except Exception as e:
         print(f"[watcher] {code} 신호 계산 실패: {e}")
+
+    # 급등락을 알림에 포함할지 결정 (buy_focus: 살 만한 급등 / 팔 만한 급락만)
+    if price_spike:
+        direction, text = price_spike
+        if not buy_focus:
+            triggers.append(text)
+        elif direction == "up" and _buy_worthy(signal) and _volume_surge(df):
+            triggers.append(text)
+        elif direction == "down" and _sell_worthy(signal):
+            triggers.append(text)
+
+    if not triggers:
+        return None  # 급등락이 신호 미달로 걸러지고 다른 재료도 없음
 
     # AI 뉴스 분석 (키 있을 때만 — 트리거 발생 시에만 호출해 비용 절감)
     ai_text = None
@@ -262,11 +304,14 @@ def discovery_scan(state: dict, cfg: dict) -> list[str]:
             extras = {"valuation": fund, "supply": fund.get("supply"),
                       "region": region, "regime": data.get_market_regime()}
             signal = ml.quick_signal(df, extras)
+            # buy_focus면 '매수 신호 + 거래량 동반'된 발굴만 알림 (살 만한 것만)
+            if cfg.get("buy_focus", True) and not (_buy_worthy(signal) and _volume_surge(df)):
+                continue
             price = float(df["Close"].iloc[-1])
             body = _build_message(code, c["name"], region,
                                   [f"관심목록 외 급등 +{c['chg']:.1f}%"],
                                   price, c["chg"], signal, None)
-            msgs.append("🔎 [발굴] 내가 모르던 급등 종목\n\n" + body)
+            msgs.append("🔎 [발굴] 매수 신호가 뜬 급등 종목\n\n" + body)
         except Exception as e:
             print(f"[watcher] 발굴 {code} 실패: {e}")
     return msgs
@@ -280,7 +325,8 @@ def run_once(cfg: dict | None = None) -> int:
     # 1) 관심·보유 종목 점검
     for code in _load_json(WATCH_FILE, {}).get("codes", []):
         try:
-            msg = check_stock(code, state, cfg.get("price_move_pct", 5.0))
+            msg = check_stock(code, state, cfg.get("price_move_pct", 5.0),
+                              cfg.get("buy_focus", True))
             if msg:
                 notify.send(msg)
                 sent += 1
