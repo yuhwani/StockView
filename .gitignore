@@ -9,6 +9,8 @@ backend/recommendations.json
 # 알림 워커 상태/감시목록 (런타임 생성)
 backend/watch.json
 backend/watch_state.json
+# KRX 목록 디스크 캐시 (KRX 차단 시 폴백용, 런타임 생성)
+backend/krx_listing.pkl
 *.egg-info/
 .pytest_cache/
 .env
