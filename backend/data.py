@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import FinanceDataReader as fdr
 import pandas as pd
@@ -9,22 +10,48 @@ import requests
 
 _LISTING_TTL = 60 * 60 * 6  # 6시간 (시총/등락률은 자주 안 바뀌므로)
 
+# KRX 서버가 일시적으로 막혀도 목록이 비지 않도록 마지막 정상본을 디스크에 보관
+_KRX_CACHE_FILE = Path(__file__).resolve().parent / "krx_listing.pkl"
+
 # 원본 리스트 캐시: 한 번 받아서 검색·목록 양쪽에 재사용한다.
 _raw: dict[str, object] = {"krx": None, "us": None, "sp500": None, "ts": 0.0}
+
+
+def _krx_ok(df) -> bool:
+    return df is not None and not df.empty and "Market" in df.columns
 
 
 def _load_raw() -> None:
     """KRX(시총 포함) / 미국 거래소 / S&P500 원본 리스트를 한 번에 적재."""
     now = time.time()
-    if _raw["krx"] is not None and now - _raw["ts"] <= _LISTING_TTL:
+    # 정상(비어있지 않은) 캐시가 살아있으면 재사용
+    if _krx_ok(_raw["krx"]) and now - _raw["ts"] <= _LISTING_TTL:
         return
 
     # 한국: 시총(Marcap), 등락률, 거래대금까지 들어있는 풍부한 리스트
     try:
-        _raw["krx"] = fdr.StockListing("KRX")
+        df = fdr.StockListing("KRX")
+        if not _krx_ok(df):
+            raise ValueError("KRX 응답이 비었거나 형식이 다름 (서버 일시 차단 가능)")
+        _raw["krx"] = df
+        try:
+            df.to_pickle(_KRX_CACHE_FILE)  # 마지막 정상본 보관
+        except Exception:
+            pass
     except Exception as e:
         print(f"[listing] KRX 실패: {e}")
-        _raw["krx"] = pd.DataFrame()
+        # 1) 메모리에 이전 정상본이 있으면 그대로 유지 (빈 값으로 덮지 않음)
+        if _krx_ok(_raw["krx"]):
+            print("[listing] 이전 KRX 캐시 유지")
+        # 2) 디스크에 저장된 마지막 정상본 사용
+        elif _KRX_CACHE_FILE.exists():
+            try:
+                _raw["krx"] = pd.read_pickle(_KRX_CACHE_FILE)
+                print("[listing] 디스크 KRX 캐시 사용 (오프라인 폴백)")
+            except Exception:
+                _raw["krx"] = pd.DataFrame()
+        else:
+            _raw["krx"] = pd.DataFrame()
 
     # 미국: 검색용 (시총 없음)
     us_frames = []
@@ -44,7 +71,9 @@ def _load_raw() -> None:
         print(f"[listing] S&P500 실패: {e}")
         _raw["sp500"] = pd.DataFrame()
 
-    _raw["ts"] = now
+    # KRX가 끝내 비었으면(폴백도 없음) TTL 캐시하지 않고 다음 호출 때 다시 시도하도록
+    # ts를 과거로 둬 빠르게 재시도(2분 후)한다.
+    _raw["ts"] = now if _krx_ok(_raw["krx"]) else now - _LISTING_TTL + 120
 
 
 def _krx() -> pd.DataFrame:
@@ -246,6 +275,11 @@ def get_named_list(list_id: str, limit: int = 100) -> list[dict]:
     """지정한 목록의 종목들을 반환."""
     _load_raw()
     krx = _krx()
+
+    # KRX(한국거래소) 서버가 막혀 목록을 못 받았으면 크래시 대신 빈 목록 반환
+    if list_id in ("krx_cap100", "kospi_cap", "kosdaq_cap", "krx_gainers", "krx_amount"):
+        if not _krx_ok(krx):
+            return []
 
     if list_id == "krx_cap100":
         df = krx.sort_values("Marcap", ascending=False)
