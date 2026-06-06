@@ -21,6 +21,55 @@ def _krx_ok(df) -> bool:
     return df is not None and not df.empty and "Market" in df.columns
 
 
+def _to_float(v):
+    try:
+        return float(str(v).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def _save_krx_cache(df) -> None:
+    try:
+        df.to_pickle(_KRX_CACHE_FILE)
+    except Exception:
+        pass
+
+
+def _krx_from_naver(pages_per_market: int = 6) -> pd.DataFrame:
+    """KRX 차단 시 네이버 시가총액 API로 한국 목록을 대체 구성.
+
+    네이버 *Raw 필드가 KRX와 동일 단위(시총·거래대금=원, 거래량=주)라 변환 불필요.
+    시총 상위순으로 시장별 약 600종목(pages_per_market×100)을 받는다.
+    """
+    headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+    rows = []
+    for market in ("KOSPI", "KOSDAQ"):
+        for page in range(1, pages_per_market + 1):
+            try:
+                url = f"https://m.stock.naver.com/api/stocks/marketValue/{market}"
+                stocks = requests.get(
+                    url, params={"page": page, "pageSize": 100},
+                    headers=headers, timeout=12,
+                ).json().get("stocks", [])
+            except Exception:
+                break
+            if not stocks:
+                break
+            for s in stocks:
+                rows.append({
+                    "Code": str(s.get("itemCode", "")),
+                    "Name": str(s.get("stockName", "")),
+                    "Market": market,
+                    "Close": _to_float(s.get("closePriceRaw")),
+                    "ChagesRatio": _to_float(s.get("fluctuationsRatio")),
+                    "Marcap": _to_float(s.get("marketValueRaw")),
+                    "Amount": _to_float(s.get("accumulatedTradingValueRaw")),
+                    "Volume": _to_float(s.get("accumulatedTradingVolumeRaw")),
+                })
+    df = pd.DataFrame(rows)
+    return df.drop_duplicates(subset="Code") if not df.empty else df
+
+
 def _load_raw() -> None:
     """KRX(시총 포함) / 미국 거래소 / S&P500 원본 리스트를 한 번에 적재."""
     now = time.time()
@@ -28,22 +77,26 @@ def _load_raw() -> None:
     if _krx_ok(_raw["krx"]) and now - _raw["ts"] <= _LISTING_TTL:
         return
 
-    # 한국: 시총(Marcap), 등락률, 거래대금까지 들어있는 풍부한 리스트
+    # 한국: KRX(시총·등락률·거래대금). 막히면 네이버 백업 → 캐시 순으로 폴백.
     try:
         df = fdr.StockListing("KRX")
         if not _krx_ok(df):
             raise ValueError("KRX 응답이 비었거나 형식이 다름 (서버 일시 차단 가능)")
         _raw["krx"] = df
-        try:
-            df.to_pickle(_KRX_CACHE_FILE)  # 마지막 정상본 보관
-        except Exception:
-            pass
+        _save_krx_cache(df)  # 마지막 정상본 보관
     except Exception as e:
-        print(f"[listing] KRX 실패: {e}")
-        # 1) 메모리에 이전 정상본이 있으면 그대로 유지 (빈 값으로 덮지 않음)
-        if _krx_ok(_raw["krx"]):
+        print(f"[listing] KRX 실패: {e} → 네이버 백업 시도")
+        nav = pd.DataFrame()
+        try:
+            nav = _krx_from_naver()
+        except Exception as e2:
+            print(f"[listing] 네이버 백업 실패: {e2}")
+        if _krx_ok(nav):
+            print(f"[listing] 네이버 백업 사용 ({len(nav)}종목)")
+            _raw["krx"] = nav
+            _save_krx_cache(nav)
+        elif _krx_ok(_raw["krx"]):
             print("[listing] 이전 KRX 캐시 유지")
-        # 2) 디스크에 저장된 마지막 정상본 사용
         elif _KRX_CACHE_FILE.exists():
             try:
                 _raw["krx"] = pd.read_pickle(_KRX_CACHE_FILE)
