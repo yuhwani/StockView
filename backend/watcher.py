@@ -304,14 +304,31 @@ def discovery_scan(state: dict, cfg: dict) -> list[str]:
             extras = {"valuation": fund, "supply": fund.get("supply"),
                       "region": region, "regime": data.get_market_regime()}
             signal = ml.quick_signal(df, extras)
-            # buy_focus면 '매수 신호 + 거래량 동반'된 발굴만 알림 (살 만한 것만)
-            if cfg.get("buy_focus", True) and not (_buy_worthy(signal) and _volume_surge(df)):
+            # 발굴은 더 엄격하게 — '매수 우위'(여러 근거가 강하게 정렬) + 거래량 동반만
+            strong = bool(signal) and signal.get("action") == "매수 우위"
+            if cfg.get("buy_focus", True) and not (strong and _volume_surge(df)):
                 continue
+            # AI 종합 분석 (발굴은 드물고 고품질이라 비용 부담 적음 → 설득력 ↑)
+            ai_text = None
+            try:
+                items = news_mod.get_news(code, region, c["name"])
+                context = {
+                    "roe": fund.get("roe"), "op_margin": fund.get("op_margin"),
+                    "debt_ratio": fund.get("debt_ratio"), "rev_growth": fund.get("rev_growth"),
+                    "per": fund.get("per"), "pbr": fund.get("pbr"), "sector": fund.get("sector"),
+                    "disclosures": [d["title"] for d in dart.get_disclosures(code)[:5]] if region == "KR" else [],
+                }
+                ai_text = ai.analyze(c["name"], code, region,
+                                     [n.get("title", "") for n in items], c["chg"],
+                                     signal["action"], [r["text"] for r in signal["reasons"]],
+                                     context=context)
+            except Exception as e:
+                print(f"[watcher] 발굴 {code} AI 실패: {e}")
             price = float(df["Close"].iloc[-1])
             body = _build_message(code, c["name"], region,
                                   [f"관심목록 외 급등 +{c['chg']:.1f}%"],
-                                  price, c["chg"], signal, None)
-            msgs.append("🔎 [발굴] 매수 신호가 뜬 급등 종목\n\n" + body)
+                                  price, c["chg"], signal, ai_text)
+            msgs.append("🔎 [발굴] 강한 매수 신호 + 급등 종목\n\n" + body)
         except Exception as e:
             print(f"[watcher] 발굴 {code} 실패: {e}")
     return msgs
