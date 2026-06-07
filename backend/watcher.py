@@ -128,8 +128,118 @@ def _volume_surge(df, mult: float = 1.5) -> bool:
         return False
 
 
+def _flipped(prev_action, signal) -> bool:
+    """직전 알림의 행동과 지금 신호가 매수↔매도로 뒤집혔는지."""
+    now = (signal or {}).get("action")
+    if not prev_action or not now:
+        return False
+    pb, ps = prev_action in _BUY_ACTIONS, prev_action in _SELL_ACTIONS
+    nb, ns = now in _BUY_ACTIONS, now in _SELL_ACTIONS
+    return (pb and ns) or (ps and nb)
+
+
+def _signal_for(code: str, region: str, df):
+    """종목 종합 신호 계산(후속 점검용). 실패 시 None."""
+    try:
+        fund = fundamentals.get_fundamentals(code, region)
+        try:
+            items = news_mod.get_news(code, region, data.get_name(code) or code)
+        except Exception:
+            items = []
+        extras = {
+            "valuation": fund, "supply": fund.get("supply"),
+            "sentiment": sentiment.analyze(items), "dart_events": dart.detect_events(code),
+            "region": region, "regime": data.get_market_regime(),
+        }
+        return ml.quick_signal(df, extras)
+    except Exception as e:
+        print(f"[watcher] {code} 후속 신호 계산 실패: {e}")
+        return None
+
+
+def _followup_check(code: str, st: dict, today_cal: str, followup_pct: float) -> str | None:
+    """오늘 이미 알림한 종목 — '강한 후속 사건'이면 한 번 더 알림.
+
+    후속 발송 조건: ① 새 공시/뉴스 재료, ② 알림가 대비 추가 ±followup_pct% 변동,
+    ③ 신호 반전(매수↔매도). 하루 후속은 최대 3회로 제한(스팸 방지).
+    """
+    if st.get("followup_date") != today_cal:
+        st["followup_date"], st["followup_n"] = today_cal, 0
+    if st.get("followup_n", 0) >= 3:
+        return None
+
+    region = data.get_region(code)
+    name = data.get_name(code) or code
+    seen = set(st.get("seen", []))
+    new_triggers = []
+
+    if region == "KR":  # 새 공시
+        for d in dart.get_disclosures(code):
+            key = "D|" + d["date"] + "|" + d["title"][:40]
+            if key in seen:
+                continue
+            seen.add(key)
+            m = _dart_material(d["title"])
+            if m:
+                new_triggers.append(f"공시 {'호재' if m[1] == 'good' else '악재'}: {m[0]}")
+    try:  # 새 뉴스 재료
+        items = news_mod.get_news(code, region, name)
+    except Exception:
+        items = []
+    for n in items:
+        key = "N|" + (n.get("url") or n.get("title", ""))[:60]
+        if key in seen:
+            continue
+        seen.add(key)
+        m = _material_news(n.get("title", ""))
+        if m:
+            new_triggers.append(f"뉴스 {'호재' if m[1] == 'good' else '악재'}: {m[0]}")
+
+    df = price = None
+    add = 0.0
+    try:
+        df = data.get_ohlcv(code, force=True)
+        price = float(df["Close"].iloc[-1])
+        ap = st.get("alerted_price")
+        if ap:
+            add = (price / ap - 1) * 100  # 알림가 대비 추가 변동
+    except Exception:
+        pass
+    st["seen"] = list(seen)[-200:]
+
+    big_move = abs(add) >= followup_pct
+    if not new_triggers and not big_move:
+        return None  # 강한 후속 사건 없음 → 조용히
+
+    signal = _signal_for(code, region, df) if df is not None else None
+    flipped = _flipped(st.get("alerted_action"), signal)
+
+    triggers = list(new_triggers)
+    if add >= followup_pct:
+        triggers.append(f"알림 후 추가 +{add:.1f}% 상승")
+    elif add <= -followup_pct:
+        triggers.append(f"알림 후 추가 {add:.1f}% 급락")
+    if flipped:
+        triggers.append(f"신호 반전: {st.get('alerted_action')} → {signal.get('action')}")
+    if not triggers:
+        return None
+
+    chg = None
+    try:
+        chg = (price / float(df["Close"].iloc[-2]) - 1) * 100
+    except Exception:
+        pass
+    if price is not None:
+        st["alerted_price"] = price
+    if signal:
+        st["alerted_action"] = signal.get("action")
+    st["followup_n"] = st.get("followup_n", 0) + 1
+    body = _build_message(code, name, region, triggers, price, chg, signal, None)
+    return "🔁 [후속] 알림 후 새로운 변화\n\n" + body
+
+
 def check_stock(code: str, state: dict, move_pct: float = 5.0,
-                buy_focus: bool = True) -> str | None:
+                buy_focus: bool = True, followup_pct: float = 5.0) -> str | None:
     """한 종목 점검 → 알림 메시지(또는 None). 첫 점검은 baseline만 잡고 조용히.
 
     buy_focus=True면 급등은 '매수 신호+거래량 동반'일 때만, 급락은 '매도 신호'일 때만
@@ -138,7 +248,8 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     st = state.setdefault(code, {"seen": [], "price_date": None, "first": True})
     today_cal = str(date.today())
     if st.get("alerted_date") == today_cal:
-        return None  # 이 종목은 오늘 이미 알림 보냄 → 하루 1회로 제한 (즉시 스킵)
+        # 오늘 이미 알림함 → 강한 후속 사건(추가 급변동·새 공시·신호 반전)일 때만 한 번 더
+        return _followup_check(code, st, today_cal, followup_pct)
     region = data.get_region(code)
     name = data.get_name(code) or code
     seen = set(st["seen"])
@@ -240,7 +351,11 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     except Exception as e:
         print(f"[watcher] {code} AI 분석 실패: {e}")
 
-    st["alerted_date"] = today_cal  # 오늘 이 종목 알림 보냄 표시 (하루 1회)
+    # 오늘 알림 보냄 표시 + 후속 비교 기준(가격·행동) 저장
+    st["alerted_date"] = today_cal
+    if price is not None:
+        st["alerted_price"] = price
+    st["alerted_action"] = signal.get("action") if signal else None
     return _build_message(code, name, region, triggers, price, chg, signal, ai_text)
 
 
@@ -347,7 +462,8 @@ def run_once(cfg: dict | None = None) -> int:
     for code in _load_json(WATCH_FILE, {}).get("codes", []):
         try:
             msg = check_stock(code, state, cfg.get("price_move_pct", 5.0),
-                              cfg.get("buy_focus", True))
+                              cfg.get("buy_focus", True),
+                              cfg.get("followup_move_pct", 5.0))
             if msg:
                 notify.send(msg)
                 sent += 1

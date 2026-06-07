@@ -62,6 +62,11 @@ export default function SettingsPage() {
               <span>{cfg.buy_focus ? "켜짐" : "꺼짐"}</span>
             </label>
           </Field>
+          <Field label="후속 알림 추가변동 (±%)"
+            hint="같은 종목은 하루 1회지만, 알림 후 이 % 더 움직이거나 신호가 반전되면 '🔁 후속'으로 한 번 더 (하루 최대 3회)">
+            <input type="number" min="2" max="20" step="0.5" value={cfg.followup_move_pct}
+              onChange={(e) => upd("followup_move_pct", +e.target.value)} />
+          </Field>
         </div>
 
         <div className="set-group">

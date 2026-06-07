@@ -13,6 +13,7 @@ _FILE = Path(__file__).resolve().parent / "alert_config.json"
 _SPEC = {
     "interval_sec": (180, int, 60, 3600),          # 점검 주기(초)
     "price_move_pct": (5.0, float, 1.0, 30.0),     # 관심·보유 급등락 알림 임계(±%)
+    "followup_move_pct": (5.0, float, 2.0, 20.0),  # 알림 후 추가로 ±이만큼 더 움직이면 후속 알림
     "buy_focus": (True, bool, None, None),          # 급등·발굴은 매수 신호+거래량일 때만(노이즈↓)
     "discovery_enabled": (True, bool, None, None),  # 관심목록 외 발굴 알림 on/off
     "discovery_move_pct": (8.0, float, 3.0, 30.0),  # 발굴 급등 임계(+%)
