@@ -135,9 +135,12 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     buy_focus=True면 급등은 '매수 신호+거래량 동반'일 때만, 급락은 '매도 신호'일 때만
     알림에 포함(살 만한/팔 만한 것만). 공시·뉴스 재료는 그대로(초기 catalyst).
     """
+    st = state.setdefault(code, {"seen": [], "price_date": None, "first": True})
+    today_cal = str(date.today())
+    if st.get("alerted_date") == today_cal:
+        return None  # 이 종목은 오늘 이미 알림 보냄 → 하루 1회로 제한 (즉시 스킵)
     region = data.get_region(code)
     name = data.get_name(code) or code
-    st = state.setdefault(code, {"seen": [], "price_date": None, "first": True})
     seen = set(st["seen"])
     first = st.get("first", False)
     triggers = []
@@ -237,6 +240,7 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     except Exception as e:
         print(f"[watcher] {code} AI 분석 실패: {e}")
 
+    st["alerted_date"] = today_cal  # 오늘 이 종목 알림 보냄 표시 (하루 1회)
     return _build_message(code, name, region, triggers, price, chg, signal, ai_text)
 
 
