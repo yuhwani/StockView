@@ -18,6 +18,7 @@ _SPEC = {
     "followup_move_pct": (5.0, float, 2.0, 20.0),  # 알림 후 추가로 ±이만큼 더 움직이면 후속 알림
     "buy_focus": (True, bool, None, None),          # 급등·발굴은 매수 신호+거래량일 때만(노이즈↓)
     "discovery_enabled": (True, bool, None, None),  # 관심목록 외 발굴 알림 on/off
+    "discovery_realtime": (True, bool, None, None),  # 발굴은 요약과 별개로 항상 실시간 발송
     "discovery_move_pct": (3.0, float, 1.0, 30.0),  # 발굴 '시작' 최소 상승(+%) — 낮을수록 일찍 포착
     "discovery_max_gain_pct": (15.0, float, 5.0, 60.0),  # 이미 이만큼 오른 건 제외(추격 방지)
     "discovery_min_marcap_eok": (3000, int, 100, 1000000),  # 발굴 최소 시총(억원)

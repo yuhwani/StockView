@@ -93,6 +93,14 @@ export default function SettingsPage() {
               <span>{cfg.discovery_enabled ? "켜짐" : "꺼짐"}</span>
             </label>
           </Field>
+          <Field label="발굴은 실시간으로"
+            hint="켜면: 관심·보유가 요약 모드여도 발굴은 즉시 발송 (기회를 일찍 보도록)">
+            <label className="switch">
+              <input type="checkbox" checked={!!cfg.discovery_realtime}
+                onChange={(e) => upd("discovery_realtime", e.target.checked)} />
+              <span>{cfg.discovery_realtime ? "실시간" : "요약 따름"}</span>
+            </label>
+          </Field>
           <Field label="발굴 시장" hint="어느 시장에서 발굴할지">
             <select value={cfg.discovery_region}
               onChange={(e) => upd("discovery_region", e.target.value)}>

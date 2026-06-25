@@ -508,42 +508,46 @@ def _maybe_send_digest(dg: dict, cfg: dict) -> int:
 def run_once(cfg: dict | None = None) -> int:
     cfg = cfg or alertconfig.load()
     mode = cfg.get("alert_mode", "digest")
-    realtime = mode in ("realtime", "both")
-    digest = mode in ("digest", "both")
+    wl_realtime = mode in ("realtime", "both")  # 관심·보유 실시간 여부
+    wl_digest = mode in ("digest", "both")      # 관심·보유 요약 여부
+    disc_realtime = cfg.get("discovery_realtime", True)  # 발굴은 따로 실시간 가능
     state = _load_json(STATE_FILE, {})
     sent = 0
-    found = []  # 이번 주기 포착 [{msg, line}, ...]
+    digest_lines = []
 
-    # 1) 관심·보유 종목 점검
+    # 1) 관심·보유 종목 → alert_mode(실시간/요약/둘다) 따름
     for code in _load_json(WATCH_FILE, {}).get("codes", []):
         try:
             item = check_stock(code, state, cfg.get("price_move_pct", 5.0),
                                cfg.get("buy_focus", True),
                                cfg.get("followup_move_pct", 5.0))
-            if item:
-                found.append(item)
+            if not item:
+                continue
+            if wl_realtime:
+                notify.send(item["msg"]); sent += 1
+            if wl_digest:
+                digest_lines.append(item["line"])
         except Exception as e:
             print(f"[watcher] {code} 점검 실패: {e}")
 
-    # 2) 관심목록 외 발굴
+    # 2) 관심목록 외 발굴 → discovery_realtime이면 즉시, 아니면 alert_mode 따름
     if cfg.get("discovery_enabled"):
         try:
-            found.extend(discovery_scan(state, cfg))
+            for item in discovery_scan(state, cfg):
+                if disc_realtime or wl_realtime:
+                    notify.send(item["msg"]); sent += 1
+                elif wl_digest:
+                    digest_lines.append(item["line"])
         except Exception as e:
             print(f"[watcher] 발굴 스캔 실패: {e}")
 
-    # 실시간 발송 (모드 realtime/both)
-    if realtime:
-        for it in found:
-            notify.send(it["msg"]); sent += 1
-
-    # 요약 버퍼 적재 + 정해진 시각에 한 통 발송 (모드 digest/both)
-    if digest:
+    # 3) 요약 버퍼 적재 + 정해진 시각(12·18시 등)에 한 통 발송
+    if wl_digest:
         dg = state.setdefault("_digest", {"date": None, "lines": [], "sent": []})
         today = str(date.today())
         if dg.get("date") != today:
             dg["date"], dg["lines"], dg["sent"] = today, [], []
-        dg["lines"].extend(it["line"] for it in found)
+        dg["lines"].extend(digest_lines)
         sent += _maybe_send_digest(dg, cfg)
 
     _save_json(STATE_FILE, state)
