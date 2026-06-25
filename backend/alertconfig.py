@@ -12,11 +12,14 @@ _FILE = Path(__file__).resolve().parent / "alert_config.json"
 # 키: (기본값, 타입, 최소, 최대) — 검증·클램프용
 _SPEC = {
     "interval_sec": (180, int, 60, 3600),          # 점검 주기(초)
+    "alert_mode": ("digest", str, None, None),      # realtime / digest(정해진 시간 요약) / both
+    "digest_hours": ("12,18", str, None, None),     # 요약 발송 시각(시, 콤마구분) 예: 12,18
     "price_move_pct": (5.0, float, 1.0, 30.0),     # 관심·보유 급등락 알림 임계(±%)
     "followup_move_pct": (5.0, float, 2.0, 20.0),  # 알림 후 추가로 ±이만큼 더 움직이면 후속 알림
     "buy_focus": (True, bool, None, None),          # 급등·발굴은 매수 신호+거래량일 때만(노이즈↓)
     "discovery_enabled": (True, bool, None, None),  # 관심목록 외 발굴 알림 on/off
-    "discovery_move_pct": (8.0, float, 3.0, 30.0),  # 발굴 급등 임계(+%)
+    "discovery_move_pct": (3.0, float, 1.0, 30.0),  # 발굴 '시작' 최소 상승(+%) — 낮을수록 일찍 포착
+    "discovery_max_gain_pct": (15.0, float, 5.0, 60.0),  # 이미 이만큼 오른 건 제외(추격 방지)
     "discovery_min_marcap_eok": (3000, int, 100, 1000000),  # 발굴 최소 시총(억원)
     "discovery_region": ("KR", str, None, None),    # 발굴 대상 시장 (KR/US)
     "discovery_max_per_cycle": (3, int, 1, 10),     # 한 점검당 최대 발굴 알림 수
@@ -35,8 +38,10 @@ def _coerce(key, value):
         elif typ is float:
             v = float(value)
         else:  # str
-            v = str(value)
+            v = str(value).strip()
             if key == "discovery_region" and v not in ("KR", "US"):
+                return default
+            if key == "alert_mode" and v not in ("realtime", "digest", "both"):
                 return default
             return v
     except (TypeError, ValueError):

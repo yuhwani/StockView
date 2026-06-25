@@ -128,6 +128,16 @@ def _volume_surge(df, mult: float = 1.5) -> bool:
         return False
 
 
+def _summary_line(action, region, name, triggers, prefix="") -> str:
+    """요약(digest) 메시지용 한 줄. 예: '🟢 약한 매수 🇰🇷 삼성전자 — 급등 +5.2% 외 1건'."""
+    act = action or "관망"
+    emoji = "🔴" if "매도" in act else ("🟢" if "매수" in act else "🟡")
+    flag = "🇺🇸" if region == "US" else "🇰🇷"
+    extra = f" 외 {len(triggers) - 1}건" if len(triggers) > 1 else ""
+    head = (triggers[0] if triggers else "")
+    return f"{prefix}{emoji} {act} {flag} {name} — {head}{extra}"
+
+
 def _flipped(prev_action, signal) -> bool:
     """직전 알림의 행동과 지금 신호가 매수↔매도로 뒤집혔는지."""
     now = (signal or {}).get("action")
@@ -231,11 +241,15 @@ def _followup_check(code: str, st: dict, today_cal: str, followup_pct: float) ->
         pass
     if price is not None:
         st["alerted_price"] = price
-    if signal:
-        st["alerted_action"] = signal.get("action")
+    action = signal.get("action") if signal else None
+    if action:
+        st["alerted_action"] = action
     st["followup_n"] = st.get("followup_n", 0) + 1
     body = _build_message(code, name, region, triggers, price, chg, signal, None)
-    return "🔁 [후속] 알림 후 새로운 변화\n\n" + body
+    return {
+        "msg": "🔁 [후속] 알림 후 새로운 변화\n\n" + body,
+        "line": _summary_line(action, region, name, triggers, prefix="🔁 "),
+    }
 
 
 def check_stock(code: str, state: dict, move_pct: float = 5.0,
@@ -355,8 +369,12 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     st["alerted_date"] = today_cal
     if price is not None:
         st["alerted_price"] = price
-    st["alerted_action"] = signal.get("action") if signal else None
-    return _build_message(code, name, region, triggers, price, chg, signal, ai_text)
+    action = signal.get("action") if signal else None
+    st["alerted_action"] = action
+    return {
+        "msg": _build_message(code, name, region, triggers, price, chg, signal, ai_text),
+        "line": _summary_line(action, region, name, triggers),
+    }
 
 
 # ETF·ETN·레버리지/인버스는 '발굴'에서 제외 (종목 발굴 기회가 아님)
@@ -372,27 +390,32 @@ def _is_etf(name: str) -> bool:
 
 
 def _scan_candidates(cfg: dict) -> list[dict]:
-    """관심목록 외 '급등' 후보를 시장 목록(시총·등락률)에서 싸게 추려낸다."""
+    """관심목록 외 발굴 후보. '이미 급등'이 아니라 '막 오르기 시작(+lo~hi%) + 거래대금 활발'
+    순으로 추려, 강한 매수 신호가 뜨는 종목을 일찍 잡는다. (과열 hi%↑는 추격 방지로 제외)
+    """
     region = cfg.get("discovery_region", "KR")
-    move = cfg.get("discovery_move_pct", 8.0)
+    lo = cfg.get("discovery_move_pct", 3.0)        # 시작 최소 상승
+    hi = cfg.get("discovery_max_gain_pct", 15.0)   # 이미 많이 오른 건 제외
     min_cap = cfg.get("discovery_min_marcap_eok", 3000) * 1e8  # 억원 → 원
     out = []
     try:
         if region == "US":
             df = data.get_us_marcap()
+            chg_col, sort_col = "ChangeRatio", ("Amount" if "Amount" in (df.columns if df is not None else []) else "Marcap")
             if df is not None and not df.empty:
-                d = df[(df["Marcap"] >= min_cap) & (df["ChangeRatio"] >= move)]
-                d = d.sort_values("ChangeRatio", ascending=False).head(30)
+                d = df[(df["Marcap"] >= min_cap) & (df[chg_col] >= lo) & (df[chg_col] <= hi)]
+                d = d.sort_values(sort_col, ascending=False).head(40)  # 거래대금 활발한 순
                 for r in d.itertuples():
                     if _is_etf(str(r.Name)):
                         continue
                     out.append({"code": str(r.Code), "name": str(r.Name),
-                                "region": "US", "chg": float(r.ChangeRatio)})
+                                "region": "US", "chg": float(getattr(r, chg_col))})
         else:
             krx = data._krx()
             if data._krx_ok(krx):
-                d = krx[(krx["Marcap"] >= min_cap) & (krx["ChagesRatio"] >= move)]
-                d = d.sort_values("ChagesRatio", ascending=False).head(30)
+                sc = "Amount" if "Amount" in krx.columns else "Marcap"
+                d = krx[(krx["Marcap"] >= min_cap) & (krx["ChagesRatio"] >= lo) & (krx["ChagesRatio"] <= hi)]
+                d = d.sort_values(sc, ascending=False).head(40)  # 거래대금 활발한 순
                 for r in d.itertuples():
                     if _is_etf(str(r.Name)):
                         continue
@@ -400,7 +423,7 @@ def _scan_candidates(cfg: dict) -> list[dict]:
                                 "region": "KR", "chg": float(r.ChagesRatio)})
     except Exception as e:
         print(f"[watcher] 발굴 후보 스캔 실패: {e}")
-    return out[:20]
+    return out[:25]
 
 
 def discovery_scan(state: dict, cfg: dict) -> list[str]:
@@ -444,40 +467,84 @@ def discovery_scan(state: dict, cfg: dict) -> list[str]:
             except Exception as e:
                 print(f"[watcher] 발굴 {code} AI 실패: {e}")
             price = float(df["Close"].iloc[-1])
-            body = _build_message(code, c["name"], region,
-                                  [f"관심목록 외 급등 +{c['chg']:.1f}%"],
-                                  price, c["chg"], signal, ai_text)
-            msgs.append("🔎 [발굴] 강한 매수 신호 + 급등 종목\n\n" + body)
+            trig = [f"관심목록 외 매수신호 포착 (오늘 +{c['chg']:.1f}%)"]
+            body = _build_message(code, c["name"], region, trig, price, c["chg"], signal, ai_text)
+            action = signal.get("action") if signal else "매수 우위"
+            msgs.append({
+                "msg": "🔎 [발굴] 강한 매수 신호 포착\n\n" + body,
+                "line": _summary_line(action, region, c["name"], trig, prefix="🔎 "),
+            })
         except Exception as e:
             print(f"[watcher] 발굴 {code} 실패: {e}")
     return msgs
 
 
+def _parse_hours(s) -> list[int]:
+    out = [int(t) for t in str(s).split(",") if t.strip().isdigit() and 0 <= int(t) <= 23]
+    return sorted(set(out)) or [12, 18]
+
+
+def _digest_message(hour: int, lines: list[str]) -> str:
+    label = "점심" if hour < 15 else "퇴근"
+    head = f"📋 [{label} 요약 · {hour}시] 오늘 포착 {len(lines)}건"
+    return head + "\n\n" + "\n".join(lines) + "\n\n· 근거·AI 분석은 앱 종목 상세에서 확인하세요."
+
+
+def _maybe_send_digest(dg: dict, cfg: dict) -> int:
+    """정해진 시각이 지났고 아직 안 보낸 요약이 있으면 한 통으로 발송."""
+    now_h = datetime.now().hour
+    sent = 0
+    for h in _parse_hours(cfg.get("digest_hours", "12,18")):
+        tag = str(h)
+        if now_h >= h and tag not in dg["sent"]:
+            dg["sent"].append(tag)
+            if dg["lines"]:
+                notify.send(_digest_message(h, dg["lines"]))
+                dg["lines"] = []
+                sent += 1
+    return sent
+
+
 def run_once(cfg: dict | None = None) -> int:
     cfg = cfg or alertconfig.load()
+    mode = cfg.get("alert_mode", "digest")
+    realtime = mode in ("realtime", "both")
+    digest = mode in ("digest", "both")
     state = _load_json(STATE_FILE, {})
     sent = 0
+    found = []  # 이번 주기 포착 [{msg, line}, ...]
 
     # 1) 관심·보유 종목 점검
     for code in _load_json(WATCH_FILE, {}).get("codes", []):
         try:
-            msg = check_stock(code, state, cfg.get("price_move_pct", 5.0),
-                              cfg.get("buy_focus", True),
-                              cfg.get("followup_move_pct", 5.0))
-            if msg:
-                notify.send(msg)
-                sent += 1
+            item = check_stock(code, state, cfg.get("price_move_pct", 5.0),
+                               cfg.get("buy_focus", True),
+                               cfg.get("followup_move_pct", 5.0))
+            if item:
+                found.append(item)
         except Exception as e:
             print(f"[watcher] {code} 점검 실패: {e}")
 
-    # 2) 관심목록 외 발굴 (설정 ON일 때)
+    # 2) 관심목록 외 발굴
     if cfg.get("discovery_enabled"):
         try:
-            for msg in discovery_scan(state, cfg):
-                notify.send(msg)
-                sent += 1
+            found.extend(discovery_scan(state, cfg))
         except Exception as e:
             print(f"[watcher] 발굴 스캔 실패: {e}")
+
+    # 실시간 발송 (모드 realtime/both)
+    if realtime:
+        for it in found:
+            notify.send(it["msg"]); sent += 1
+
+    # 요약 버퍼 적재 + 정해진 시각에 한 통 발송 (모드 digest/both)
+    if digest:
+        dg = state.setdefault("_digest", {"date": None, "lines": [], "sent": []})
+        today = str(date.today())
+        if dg.get("date") != today:
+            dg["date"], dg["lines"], dg["sent"] = today, [], []
+        dg["lines"].extend(it["line"] for it in found)
+        sent += _maybe_send_digest(dg, cfg)
 
     _save_json(STATE_FILE, state)
     return sent
@@ -497,7 +564,9 @@ def main():
 
     cfg = alertconfig.load()
     ch = "텔레그램" if notify.enabled() else "콘솔(텔레그램 미설정)"
-    disc = "발굴 ON" if cfg.get("discovery_enabled") else "발굴 OFF"
+    _mode = {"digest": f"요약({cfg.get('digest_hours')}시)",
+             "realtime": "실시간", "both": "실시간+요약"}.get(cfg.get("alert_mode", "digest"), "요약")
+    disc = ("발굴 ON" if cfg.get("discovery_enabled") else "발굴 OFF") + f", 알림={_mode}"
     if args.once:
         print(f"[watcher] 1회 점검 — 알림채널: {ch}, {disc}")
         n = run_once(cfg)

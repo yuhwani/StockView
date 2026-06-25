@@ -46,6 +46,21 @@ export default function SettingsPage() {
 
         <div className="set-group">
           <h4>기본</h4>
+          <Field label="알림 방식"
+            hint="요약: 정해진 시각에 하루치를 한 통으로 / 실시간: 사건마다 즉시 / 둘 다">
+            <select value={cfg.alert_mode}
+              onChange={(e) => upd("alert_mode", e.target.value)}>
+              <option value="digest">요약 (정해진 시각)</option>
+              <option value="realtime">실시간</option>
+              <option value="both">둘 다</option>
+            </select>
+          </Field>
+          {cfg.alert_mode !== "realtime" && (
+            <Field label="요약 발송 시각" hint="시(0~23), 콤마로 구분. 예: 12,18 (점심·퇴근)">
+              <input type="text" value={cfg.digest_hours}
+                onChange={(e) => upd("digest_hours", e.target.value)} />
+            </Field>
+          )}
           <Field label="점검 주기 (초)" hint="최소 60초. 짧을수록 빠르지만 호출↑">
             <input type="number" min="60" max="3600" value={cfg.interval_sec}
               onChange={(e) => upd("interval_sec", +e.target.value)} />
@@ -85,7 +100,11 @@ export default function SettingsPage() {
               <option value="US">미국</option>
             </select>
           </Field>
-          <Field label="발굴 급등 임계 (+%)" hint="이 % 이상 오른 종목을 발굴 (높일수록 적게)">
+          <Field label="발굴 과열 제외 (+%)" hint="오늘 이미 이만큼 오른 종목은 제외 (추격매수 방지)">
+            <input type="number" min="5" max="60" step="1" value={cfg.discovery_max_gain_pct}
+              onChange={(e) => upd("discovery_max_gain_pct", +e.target.value)} />
+          </Field>
+          <Field label="발굴 시작 상승 (+%)" hint="오늘 이 % 이상 오르기 시작 + 강한 매수 신호면 발굴 (낮을수록 일찍)">
             <input type="number" min="3" max="30" step="0.5" value={cfg.discovery_move_pct}
               onChange={(e) => upd("discovery_move_pct", +e.target.value)} />
           </Field>
