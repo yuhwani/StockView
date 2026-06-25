@@ -128,14 +128,32 @@ def _volume_surge(df, mult: float = 1.5) -> bool:
         return False
 
 
-def _summary_line(action, region, name, triggers, prefix="") -> str:
-    """요약(digest) 메시지용 한 줄. 예: '🟢 약한 매수 🇰🇷 삼성전자 — 급등 +5.2% 외 1건'."""
+def _summary_line(action, region, name, triggers, signal=None, prefix="") -> str:
+    """요약(digest)용. 한 줄 요약 + '왜 오르(내리)려는지' 근거 한 줄.
+
+    예) 🟢 약한 매수 🇰🇷 삼성전자 — 급등 +5.2%
+          └ 외국인·기관 동반 순매수 · 거래량 급증 · 52주 신고가권
+    """
     act = action or "관망"
     emoji = "🔴" if "매도" in act else ("🟢" if "매수" in act else "🟡")
     flag = "🇺🇸" if region == "US" else "🇰🇷"
     extra = f" 외 {len(triggers) - 1}건" if len(triggers) > 1 else ""
     head = (triggers[0] if triggers else "")
-    return f"{prefix}{emoji} {act} {flag} {name} — {head}{extra}"
+    line = f"{prefix}{emoji} {act} {flag} {name} — {head}{extra}"
+    if signal and signal.get("reasons"):
+        want = "down" if "매도" in act else "up"  # 매도면 '왜 빠지는지', 그 외엔 '왜 오르는지'
+        # ML 확률 줄은 빼고(행동에 이미 반영), 구체적 근거(수급·거래량·신고가·공시 등)를 앞으로
+        ups = [r["text"] for r in signal["reasons"]
+               if r.get("dir") == want and not r["text"].startswith("AI 예측")]
+        # 쉬운 말 근거 문구에 맞춘 '구체적 catalyst' 키워드
+        _KEY = ("공시", "큰손", "거래가", "가격대", "뚫", "깸", "돌아섬", "호재", "악재",
+                "ROE", "영업이익", "빚이", "매출이", "싼 편", "저평가", "시장지수보다",
+                "공매도", "증권사", "성장")
+        ups.sort(key=lambda t: 0 if any(k in t for k in _KEY) else 1)  # 구체적 근거 우선(안정정렬)
+        rs = ups[:3]
+        if rs:
+            line += "\n   └ " + " · ".join(rs)
+    return line
 
 
 def _flipped(prev_action, signal) -> bool:
@@ -248,7 +266,7 @@ def _followup_check(code: str, st: dict, today_cal: str, followup_pct: float) ->
     body = _build_message(code, name, region, triggers, price, chg, signal, None)
     return {
         "msg": "🔁 [후속] 알림 후 새로운 변화\n\n" + body,
-        "line": _summary_line(action, region, name, triggers, prefix="🔁 "),
+        "line": _summary_line(action, region, name, triggers, signal, prefix="🔁 "),
     }
 
 
@@ -373,7 +391,7 @@ def check_stock(code: str, state: dict, move_pct: float = 5.0,
     st["alerted_action"] = action
     return {
         "msg": _build_message(code, name, region, triggers, price, chg, signal, ai_text),
-        "line": _summary_line(action, region, name, triggers),
+        "line": _summary_line(action, region, name, triggers, signal),
     }
 
 
@@ -472,7 +490,7 @@ def discovery_scan(state: dict, cfg: dict) -> list[str]:
             action = signal.get("action") if signal else "매수 우위"
             msgs.append({
                 "msg": "🔎 [발굴] 강한 매수 신호 포착\n\n" + body,
-                "line": _summary_line(action, region, c["name"], trig, prefix="🔎 "),
+                "line": _summary_line(action, region, c["name"], trig, signal, prefix="🔎 "),
             })
         except Exception as e:
             print(f"[watcher] 발굴 {code} 실패: {e}")
