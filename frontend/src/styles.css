@@ -1867,3 +1867,15 @@ footer {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* 신호 맥락 설명 (ML 예측과 행동이 어긋날 때) */
+.sig-context {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  background: #eef2ff;
+  border-left: 3px solid #6366f1;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #3730a3;
+}

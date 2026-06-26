@@ -22,7 +22,7 @@ function price(v, region) {
 
 export default function SignalPanel({ signal, levels, valuation, region }) {
   if (!signal) return null;
-  const { action, tone, summary, confidence, reasons, caveat, score } = signal;
+  const { action, tone, summary, confidence, reasons, caveat, score, context } = signal;
   const v = valuation || {};
 
   return (
@@ -54,6 +54,8 @@ export default function SignalPanel({ signal, levels, valuation, region }) {
           </li>
         ))}
       </ul>
+
+      {context && <p className="sig-context">🧭 {context}</p>}
 
       {/* 손절·목표가 (변동성 기반) */}
       {levels && (
