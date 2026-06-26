@@ -98,6 +98,10 @@ def _build_message(code, name, region, triggers, price, chg, signal, ai_text=Non
         for r in shown:
             lines.append(f"   • {r['text']}")
 
+    if signal and signal.get("context"):  # ML 예측과 행동이 어긋날 때 맥락 설명
+        lines.append("")
+        lines.append(f"🧭 {signal['context']}")
+
     if ai_text:
         lines.append("")
         lines.append("🤖 AI 분석")

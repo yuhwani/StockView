@@ -486,6 +486,27 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
     else:
         action, tone, summary = "매도 우위", "sell", "여러 신호가 매도(비중 축소)에 무게를 둡니다."
 
+    # 맥락: ML 단기예측과 종합 행동이 어긋날 때 '그럼에도 왜 그런지' 한 줄
+    _CONCRETE = ("공시", "큰손", "거래가", "가격대", "뚫", "깸", "돌아섬", "호재",
+                 "ROE", "영업이익", "매출", "싼 편", "저평가", "시장지수보다", "공매도", "증권사")
+
+    def _top_drivers(direction):
+        ds = [t for d, t in reasons if d == direction and not t.startswith("AI 예측")]
+        ds.sort(key=lambda t: 0 if any(k in t for k in _CONCRETE) else 1)  # 구체적 근거 우선
+        return [t.split(" → ")[0].strip() for t in ds[:2]]  # '→' 앞 핵심만
+
+    context = None
+    if tone in ("buy", "buy_weak") and proba_up < 0.5:
+        dv = _top_drivers("up")
+        if dv:
+            context = (f"AI의 내일 상승 예측은 낮지만({proba_up:.0%}), "
+                       f"{' · '.join(dv)} 같은 신호가 더 강해 종합적으로 '{action}'로 봅니다.")
+    elif tone in ("sell", "sell_weak") and proba_up > 0.5:
+        dv = _top_drivers("down")
+        if dv:
+            context = (f"AI의 내일 상승 예측은 나쁘지 않지만({proba_up:.0%}), "
+                       f"{' · '.join(dv)} 같은 우려가 더 커 종합적으로 '{action}'로 봅니다.")
+
     # 신뢰도: 점수 크기 + 모델의 실제 우위(edge) 반영
     confidence = min(abs(score) / 6.0, 1.0)
     caveat = None
@@ -500,6 +521,7 @@ def investment_signal(row, proba_up: float, edge: float, extras: dict | None = N
         "score": round(score, 2),
         "confidence": round(confidence, 2),
         "summary": summary,
+        "context": context,
         "reasons": [{"dir": d, "text": t} for d, t in reasons],
         "caveat": caveat,
     }
