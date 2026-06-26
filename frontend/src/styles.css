@@ -1547,8 +1547,9 @@ td.clk {
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 18px rgba(16, 24, 40, 0.05);
 }
 .card h3 {
   margin: 0 0 14px;
@@ -1866,6 +1867,74 @@ footer {
 .set-status {
   font-size: 13px;
   color: var(--muted);
+}
+
+/* ── 홈 히어로 배너 ── */
+.home-hero {
+  border-radius: 18px;
+  padding: 30px 30px;
+  margin: 6px 0 22px;
+  background: linear-gradient(125deg, #3b5bdb 0%, #5a63ea 48%, #7048e8 100%);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(66, 99, 235, 0.28);
+}
+.home-hero h2 {
+  margin: 0 0 8px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.home-hero p {
+  margin: 0;
+  opacity: 0.92;
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 560px;
+}
+.hero-tags {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hero-tag {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ── 종목 상세: 카드 세로 리듬 ── */
+.stock-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.stock-page .back-link {
+  margin: 0;
+}
+.stock-page .grid {
+  margin-top: 0;
+}
+
+/* ── 목록 행(종목 카드) 레이아웃 다듬기 ── */
+.list-table td {
+  padding: 11px 12px;
+}
+.row-name {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.row-flag {
+  margin-right: 7px;
+}
+.list-table tr.row:hover td:first-child {
+  box-shadow: inset 3px 0 0 #4263eb;
+}
+.chip.active {
+  box-shadow: 0 4px 12px rgba(66, 99, 235, 0.28);
 }
 
 /* 작은 인라인 로딩 (페이지 안 막음) */
