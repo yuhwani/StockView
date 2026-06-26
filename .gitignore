@@ -33,3 +33,5 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+# 계정 동기화 (런타임 생성)
+backend/accounts.json

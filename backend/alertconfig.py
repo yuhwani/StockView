@@ -14,6 +14,7 @@ _SPEC = {
     "interval_sec": (180, int, 60, 3600),          # 점검 주기(초)
     "alert_mode": ("digest", str, None, None),      # realtime / digest(정해진 시간 요약) / both
     "digest_hours": ("12,18", str, None, None),     # 요약 발송 시각(시, 콤마구분) 예: 12,18
+    "account_reports": (True, bool, None, None),    # 계정별 보유·관심 종목 보고서를 요약 시각에 함께 발송
     "price_move_pct": (5.0, float, 1.0, 30.0),     # 관심·보유 급등락 알림 임계(±%)
     "followup_move_pct": (5.0, float, 2.0, 20.0),  # 알림 후 추가로 ±이만큼 더 움직이면 후속 알림
     "buy_focus": (True, bool, None, None),          # 급등·발굴은 매수 신호+거래량일 때만(노이즈↓)

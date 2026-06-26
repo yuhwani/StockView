@@ -246,6 +246,29 @@ def set_watch(req: WatchReq):
     return {"ok": True, "count": len(codes)}
 
 
+_ACCOUNTS_FILE = Path(__file__).resolve().parent / "accounts.json"
+
+
+@app.post("/api/accounts")
+def set_accounts(payload: dict):
+    """계정별 즐겨찾기·보유 종목 동기화 (계정별 보고서용). 브라우저가 보냄."""
+    accounts = payload.get("accounts") if isinstance(payload, dict) else None
+    if not isinstance(accounts, list):
+        accounts = []
+    _ACCOUNTS_FILE.write_text(
+        json.dumps({"accounts": accounts}, ensure_ascii=False), encoding="utf-8"
+    )
+    return {"ok": True, "count": len(accounts)}
+
+
+@app.get("/api/accounts")
+def get_accounts():
+    try:
+        return json.loads(_ACCOUNTS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"accounts": []}
+
+
 @app.get("/api/watch")
 def get_watch():
     try:

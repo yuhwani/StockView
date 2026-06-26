@@ -7,6 +7,7 @@ import {
 } from "react";
 
 const KEY = "stockview.portfolio";
+const WKEY = "stockview.watchlists"; // 계정별 즐겨찾기 { [accId]: [entries] }
 
 function load() {
   try {
@@ -18,15 +19,46 @@ function load() {
   return { accounts: [], activeId: null, tx: {} };
 }
 
+function loadWatch() {
+  try {
+    return JSON.parse(localStorage.getItem(WKEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
 const Ctx = createContext(null);
 
-// 로그인 없는 '계좌(프로필)' + 실매매 기록을 전역(Context)으로 관리
+// 로그인 없는 '계좌(프로필)' + 실매매 기록 + 계정별 즐겨찾기를 전역(Context)으로 관리
 export function AccountsProvider({ children }) {
   const [state, setState] = useState(load);
+  const [watch, setWatch] = useState(loadWatch);
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    localStorage.setItem(WKEY, JSON.stringify(watch));
+  }, [watch]);
+
+  // 계정별 즐겨찾기 조회/토글
+  const favsOf = useCallback((id) => watch[id] || [], [watch]);
+  const toggleFav = useCallback((id, stock) => {
+    const entry = {
+      Code: stock.Code || stock.code,
+      Name: stock.Name || stock.name,
+      Region: stock.Region || stock.region || "KR",
+      Market: stock.Market || stock.market || "",
+    };
+    setWatch((w) => {
+      const list = w[id] || [];
+      const next = list.some((i) => i.Code === entry.Code)
+        ? list.filter((i) => i.Code !== entry.Code)
+        : [...list, entry];
+      return { ...w, [id]: next };
+    });
+  }, []);
 
   const addAccount = useCallback((name) => {
     const id = "acc_" + Date.now();
@@ -98,6 +130,9 @@ export function AccountsProvider({ children }) {
     addTrade,
     removeTrade,
     txOf,
+    watch,
+    favsOf,
+    toggleFav,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

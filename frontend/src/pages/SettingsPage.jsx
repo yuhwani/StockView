@@ -61,6 +61,14 @@ export default function SettingsPage() {
                 onChange={(e) => upd("digest_hours", e.target.value)} />
             </Field>
           )}
+          <Field label="계정별 보고서"
+            hint="켜면: 요약 시각마다 계정마다 '보유·관심 종목 보고서'(종목별 현재가·신호·근거)를 함께 발송">
+            <label className="switch">
+              <input type="checkbox" checked={!!cfg.account_reports}
+                onChange={(e) => upd("account_reports", e.target.checked)} />
+              <span>{cfg.account_reports ? "켜짐" : "꺼짐"}</span>
+            </label>
+          </Field>
           <Field label="점검 주기 (초)" hint="최소 60초. 짧을수록 빠르지만 호출↑">
             <input type="number" min="60" max="3600" value={cfg.interval_sec}
               onChange={(e) => upd("interval_sec", +e.target.value)} />

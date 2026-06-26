@@ -38,6 +38,7 @@ import sentiment
 
 WATCH_FILE = HERE / "watch.json"
 STATE_FILE = HERE / "watch_state.json"
+ACCOUNTS_FILE = HERE / "accounts.json"  # 계정별 즐겨찾기·보유 (브라우저가 동기화)
 
 
 def _load_json(path, default):
@@ -132,31 +133,35 @@ def _volume_surge(df, mult: float = 1.5) -> bool:
         return False
 
 
-def _summary_line(action, region, name, triggers, signal=None, prefix="") -> str:
-    """요약(digest)용. 한 줄 요약 + '왜 오르(내리)려는지' 근거 한 줄.
+# 쉬운 말 근거 문구에 맞춘 '구체적 catalyst' 키워드 (요약/보고서에서 앞세움)
+_WHY_KEY = ("공시", "큰손", "거래가", "가격대", "뚫", "깸", "돌아섬", "호재", "악재",
+            "ROE", "영업이익", "빚이", "매출이", "싼 편", "저평가", "시장지수보다",
+            "공매도", "증권사", "성장")
 
-    예) 🟢 약한 매수 🇰🇷 삼성전자 — 급등 +5.2%
-          └ 외국인·기관 동반 순매수 · 거래량 급증 · 52주 신고가권
-    """
+
+def _why_phrases(signal, action, n=3) -> str:
+    """신호에서 '왜 오르(내리)려는지' 구체적 근거 n개를 뽑아 ' · '로 잇는다."""
+    if not signal or not signal.get("reasons"):
+        return ""
+    want = "down" if "매도" in (action or "") else "up"
+    # ML 확률 줄은 빼고(행동에 이미 반영) 구체적 근거(수급·거래량·신고가·공시 등) 우선
+    ups = [r["text"] for r in signal["reasons"]
+           if r.get("dir") == want and not r["text"].startswith("AI 예측")]
+    ups.sort(key=lambda t: 0 if any(k in t for k in _WHY_KEY) else 1)
+    return " · ".join(ups[:n])
+
+
+def _summary_line(action, region, name, triggers, signal=None, prefix="") -> str:
+    """요약(digest)용. 한 줄 요약 + '왜 오르(내리)려는지' 근거 한 줄."""
     act = action or "관망"
     emoji = "🔴" if "매도" in act else ("🟢" if "매수" in act else "🟡")
     flag = "🇺🇸" if region == "US" else "🇰🇷"
     extra = f" 외 {len(triggers) - 1}건" if len(triggers) > 1 else ""
     head = (triggers[0] if triggers else "")
     line = f"{prefix}{emoji} {act} {flag} {name} — {head}{extra}"
-    if signal and signal.get("reasons"):
-        want = "down" if "매도" in act else "up"  # 매도면 '왜 빠지는지', 그 외엔 '왜 오르는지'
-        # ML 확률 줄은 빼고(행동에 이미 반영), 구체적 근거(수급·거래량·신고가·공시 등)를 앞으로
-        ups = [r["text"] for r in signal["reasons"]
-               if r.get("dir") == want and not r["text"].startswith("AI 예측")]
-        # 쉬운 말 근거 문구에 맞춘 '구체적 catalyst' 키워드
-        _KEY = ("공시", "큰손", "거래가", "가격대", "뚫", "깸", "돌아섬", "호재", "악재",
-                "ROE", "영업이익", "빚이", "매출이", "싼 편", "저평가", "시장지수보다",
-                "공매도", "증권사", "성장")
-        ups.sort(key=lambda t: 0 if any(k in t for k in _KEY) else 1)  # 구체적 근거 우선(안정정렬)
-        rs = ups[:3]
-        if rs:
-            line += "\n   └ " + " · ".join(rs)
+    why = _why_phrases(signal, act)
+    if why:
+        line += "\n   └ " + why
     return line
 
 
@@ -527,6 +532,84 @@ def _maybe_send_digest(dg: dict, cfg: dict) -> int:
     return sent
 
 
+def _report_line(s: dict, held: bool = False) -> str:
+    """계정 보고서용 종목 한 줄 — 현재가·등락·행동 + 보유면 수익률 + '왜' 근거."""
+    code = s.get("code") or s.get("Code") or ""
+    name = s.get("name") or s.get("Name") or code
+    region = s.get("region") or s.get("Region") or "KR"
+    flag = "🇺🇸" if region == "US" else "🇰🇷"
+    try:
+        df = data.get_ohlcv(code)
+        price = float(df["Close"].iloc[-1])
+        chg = (price / float(df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
+        fund = fundamentals.get_fundamentals(code, region)
+        extras = {"valuation": fund, "supply": fund.get("supply"),
+                  "region": region, "regime": data.get_market_regime()}
+        sig = ml.quick_signal(df, extras)
+        action = sig.get("action") if sig else "관망"
+        emoji = "🔴" if "매도" in action else ("🟢" if "매수" in action else "🟡")
+        px = f"{int(round(price)):,}원" if region != "US" else f"${price:,.2f}"
+        head = f"{emoji} {name} {flag} {px} ({chg:+.1f}%) · {action}"
+        if held and s.get("qty") and s.get("avg"):
+            try:
+                roi = (price / float(s["avg"]) - 1) * 100
+                head += f" · 보유 {s['qty']}주({roi:+.1f}%)"
+            except Exception:
+                pass
+        why = _why_phrases(sig, action)
+        return head + (f"\n   └ {why}" if why else "")
+    except Exception:
+        return f"🟡 {name} {flag} — 데이터 조회 실패"
+
+
+def _account_reports(hour: int) -> list[str]:
+    """계정별 '보유·관심 종목 보고서' 메시지 목록 (계정마다 1통)."""
+    accounts = _load_json(ACCOUNTS_FILE, {}).get("accounts", [])
+    label = "점심" if hour < 15 else "퇴근"
+    out = []
+    for acct in accounts:
+        name = acct.get("name") or "내 계좌"
+        holds = acct.get("holdings", []) or []
+        favs = acct.get("favorites", []) or []
+        if not holds and not favs:
+            continue
+        lines = [f"📒 [{name}님 {label}보고]  보유 {len(holds)} · 관심 {len(favs)}"]
+        if holds:
+            lines.append("")
+            lines.append("💼 보유 종목")
+            for s in holds[:12]:
+                lines.append(_report_line(s, held=True))
+        if favs:
+            lines.append("")
+            lines.append("⭐ 관심 종목")
+            for s in favs[:18]:
+                lines.append(_report_line(s, held=False))
+            if len(favs) > 18:
+                lines.append(f"   …외 {len(favs) - 18}종목 더")
+        lines.append("")
+        lines.append("· 자세한 근거·AI 분석은 앱 종목 상세에서.")
+        out.append("\n".join(lines))
+    return out
+
+
+def _maybe_send_account_reports(state: dict, cfg: dict) -> int:
+    """요약 시각마다 계정별 보고서를 1회씩 발송 (account_reports ON일 때)."""
+    ar = state.setdefault("_acct_report", {"date": None, "sent": []})
+    today = str(date.today())
+    if ar.get("date") != today:
+        ar["date"], ar["sent"] = today, []
+    now_h = datetime.now().hour
+    sent = 0
+    for h in _parse_hours(cfg.get("digest_hours", "12,18")):
+        tag = str(h)
+        if now_h >= h and tag not in ar["sent"]:
+            ar["sent"].append(tag)
+            for msg in _account_reports(h):
+                notify.send(msg)
+                sent += 1
+    return sent
+
+
 def run_once(cfg: dict | None = None) -> int:
     cfg = cfg or alertconfig.load()
     mode = cfg.get("alert_mode", "digest")
@@ -571,6 +654,13 @@ def run_once(cfg: dict | None = None) -> int:
             dg["date"], dg["lines"], dg["sent"] = today, [], []
         dg["lines"].extend(digest_lines)
         sent += _maybe_send_digest(dg, cfg)
+
+    # 4) 계정별 보고서 (요약 시각에 함께, alert_mode와 무관하게)
+    if cfg.get("account_reports"):
+        try:
+            sent += _maybe_send_account_reports(state, cfg)
+        except Exception as e:
+            print(f"[watcher] 계정 보고서 실패: {e}")
 
     _save_json(STATE_FILE, state)
     return sent

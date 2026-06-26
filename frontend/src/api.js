@@ -43,6 +43,14 @@ export const syncWatch = (codes) =>
     body: JSON.stringify({ codes }),
   }).then((r) => r.json());
 
+// 계정별 즐겨찾기·보유 종목 동기화 (계정별 보고서용)
+export const syncAccounts = (accounts) =>
+  fetch("/api/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accounts }),
+  }).then((r) => r.json());
+
 export const getLists = () => get(`/api/lists`);
 
 export const getList = (id, limit = 100) =>

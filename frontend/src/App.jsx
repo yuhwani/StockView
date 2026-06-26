@@ -16,21 +16,47 @@ import SettingsPage from "./pages/SettingsPage";
 import WatchlistPage from "./pages/WatchlistPage";
 import AccountsPage from "./pages/AccountsPage";
 import { AccountsProvider, useAccounts } from "./useAccounts";
-import { useWatchlist } from "./useWatchlist";
-import { syncWatch } from "./api";
+import { syncWatch, syncAccounts } from "./api";
+import { heldQtyOf } from "./portfolio";
 
-// 관심·보유 종목을 백엔드(알림 워커)로 동기화
+// 계정별 즐겨찾기·보유를 백엔드(알림 워커)로 동기화 — 실시간 감시 + 계정별 보고서용
 function WatchSync() {
-  const { items } = useWatchlist();
-  const { accounts, txOf } = useAccounts();
-  const codes = [
-    ...new Set([
-      ...items.map((i) => i.Code),
-      ...accounts.flatMap((a) => (txOf(a.id) || []).map((t) => t.code)),
-    ]),
-  ];
-  const key = codes.join(",");
+  const { accounts, txOf, watch } = useAccounts();
+
+  // 계정마다 {name, favorites, holdings(qty·avg 포함)} 구성
+  const payload = accounts.map((a) => {
+    const txs = txOf(a.id) || [];
+    const codes = [...new Set(txs.map((t) => t.code))];
+    const holdings = codes
+      .filter((c) => heldQtyOf(txs, c) > 0)
+      .map((c) => {
+        const t = txs.find((x) => x.code === c) || {};
+        // 평균단가 = 보유분 매입원가 / 수량
+        let qty = 0, cost = 0;
+        for (const x of txs.filter((x) => x.code === c)) {
+          const q = Number(x.qty) || 0, p = Number(x.price) || 0;
+          if (x.side === "buy") { qty += q; cost += q * p; }
+          else { const avg = qty > 0 ? cost / qty : 0; const s = Math.min(q, qty); cost -= avg * s; qty -= s; }
+        }
+        return { code: c, name: t.name, region: t.region, qty, avg: qty > 0 ? cost / qty : 0 };
+      });
+    const favorites = (watch[a.id] || []).map((f) => ({
+      code: f.Code, name: f.Name, region: f.Region,
+    }));
+    return { id: a.id, name: a.name, favorites, holdings };
+  });
+
+  const key = JSON.stringify(payload);
   useEffect(() => {
+    if (!accounts.length) return;
+    syncAccounts(payload).catch(() => {});
+    // 실시간 워커용 평면 코드 목록(전 계정 합집합)도 유지
+    const codes = [
+      ...new Set(payload.flatMap((a) => [
+        ...a.favorites.map((f) => f.code),
+        ...a.holdings.map((h) => h.code),
+      ])),
+    ];
     if (codes.length) syncWatch(codes).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
