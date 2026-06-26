@@ -8,6 +8,7 @@ import {
 
 const KEY = "stockview.portfolio";
 const WKEY = "stockview.watchlists"; // 계정별 즐겨찾기 { [accId]: [entries] }
+const RKEY = "stockview.reportprefs"; // 계정별 보고서 받기 { [accId]: bool }
 
 function load() {
   try {
@@ -27,12 +28,21 @@ function loadWatch() {
   }
 }
 
+function loadReports() {
+  try {
+    return JSON.parse(localStorage.getItem(RKEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
 const Ctx = createContext(null);
 
 // 로그인 없는 '계좌(프로필)' + 실매매 기록 + 계정별 즐겨찾기를 전역(Context)으로 관리
 export function AccountsProvider({ children }) {
   const [state, setState] = useState(load);
   const [watch, setWatch] = useState(loadWatch);
+  const [reports, setReports] = useState(loadReports);
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -41,6 +51,16 @@ export function AccountsProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(WKEY, JSON.stringify(watch));
   }, [watch]);
+
+  useEffect(() => {
+    localStorage.setItem(RKEY, JSON.stringify(reports));
+  }, [reports]);
+
+  // 계정별 보고서 받기 (기본 켜짐)
+  const reportOn = useCallback((id) => reports[id] !== false, [reports]);
+  const setReportOn = useCallback((id, on) => {
+    setReports((r) => ({ ...r, [id]: !!on }));
+  }, []);
 
   // 계정별 즐겨찾기 조회/토글
   const favsOf = useCallback((id) => watch[id] || [], [watch]);
@@ -133,6 +153,8 @@ export function AccountsProvider({ children }) {
     watch,
     favsOf,
     toggleFav,
+    reportOn,
+    setReportOn,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

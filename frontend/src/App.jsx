@@ -21,7 +21,7 @@ import { heldQtyOf } from "./portfolio";
 
 // 계정별 즐겨찾기·보유를 백엔드(알림 워커)로 동기화 — 실시간 감시 + 계정별 보고서용
 function WatchSync() {
-  const { accounts, txOf, watch } = useAccounts();
+  const { accounts, txOf, watch, reportOn } = useAccounts();
 
   // 계정마다 {name, favorites, holdings(qty·avg 포함)} 구성
   const payload = accounts.map((a) => {
@@ -43,7 +43,7 @@ function WatchSync() {
     const favorites = (watch[a.id] || []).map((f) => ({
       code: f.Code, name: f.Name, region: f.Region,
     }));
-    return { id: a.id, name: a.name, favorites, holdings };
+    return { id: a.id, name: a.name, favorites, holdings, report_enabled: reportOn(a.id) };
   });
 
   const key = JSON.stringify(payload);

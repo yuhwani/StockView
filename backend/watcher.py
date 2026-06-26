@@ -568,6 +568,8 @@ def _account_reports(hour: int) -> list[str]:
     label = "점심" if hour < 15 else "퇴근"
     out = []
     for acct in accounts:
+        if not acct.get("report_enabled", True):
+            continue  # 이 계정은 보고서 받지 않기로 선택함
         name = acct.get("name") or "내 계좌"
         holds = acct.get("holdings", []) or []
         favs = acct.get("favorites", []) or []
