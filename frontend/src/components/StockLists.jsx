@@ -33,8 +33,15 @@ export default function StockLists({ onSelectStock, watchlist }) {
 
   useEffect(() => {
     getLists()
-      .then((d) => setCatalog(d.lists))
+      .then((d) => {
+        setCatalog(d.lists || []);
+        // 홈이 비어 보이지 않게 기본 목록(한국 시총)을 자동으로 펼침
+        const def =
+          (d.lists || []).find((c) => c.id === "krx_cap100") || (d.lists || [])[0];
+        if (def) openList(def.id);
+      })
       .catch(() => setCatalog([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openList = async (id) => {

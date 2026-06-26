@@ -25,14 +25,15 @@ export default function StockPage() {
   const [news, setNews] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [bt, setBt] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stockLoading, setStockLoading] = useState(true);
+  const [predLoading, setPredLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [forecastLoading, setForecastLoading] = useState(true);
   const [btLoading, setBtLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = async (refresh = false) => {
-    setLoading(true);
+  // 각 데이터를 '독립적으로' 받아 먼저 끝난 것부터 보여준다 (학습 기다리지 않고)
+  const load = (refresh = false) => {
     setError(null);
     if (!refresh) {
       setStock(null);
@@ -42,13 +43,26 @@ export default function StockPage() {
       setBt(null);
     }
 
+    // 1) 시세 — 가볍고 빠름 → 차트·매매·헤더가 즉시 뜸
+    setStockLoading(true);
+    getStock(code, refresh)
+      .then(setStock)
+      .catch((e) => setError(e.message))
+      .finally(() => setStockLoading(false));
+
+    // 2) 종합 신호·예측 — 모델 학습이라 무거움 → 따로 (다른 건 그동안 봄)
+    setPredLoading(true);
+    predict(code, refresh)
+      .then(setPrediction)
+      .catch(() => setPrediction(null))
+      .finally(() => setPredLoading(false));
+
     setNewsLoading(true);
     getNews(code, refresh)
       .then((d) => setNews(d.items))
       .catch(() => setNews([]))
       .finally(() => setNewsLoading(false));
 
-    // 미래 예측은 학습이 무거워 따로 (signal·차트 먼저 보이게)
     setForecastLoading(true);
     getForecast(code, refresh)
       .then(setForecast)
@@ -60,20 +74,9 @@ export default function StockPage() {
       .then(setBt)
       .catch(() => setBt({ curve: [] }))
       .finally(() => setBtLoading(false));
-
-    try {
-      const [stockData, predData] = await Promise.all([
-        getStock(code, refresh),
-        predict(code, refresh),
-      ]);
-      setStock(stockData);
-      setPrediction(predData);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
   };
+
+  const busy = stockLoading || predLoading;
 
   useEffect(() => {
     load(false);
@@ -86,8 +89,8 @@ export default function StockPage() {
         ← 홈으로
       </Link>
 
-      {loading && !stock && (
-        <div className="loading">분석 중… (모델 학습에 몇 초 걸려요)</div>
+      {stockLoading && !stock && (
+        <div className="loading-inline">⏳ 시세 불러오는 중…</div>
       )}
       {error && <div className="error">⚠️ {error}</div>}
 
@@ -111,9 +114,9 @@ export default function StockPage() {
             <button
               className="refresh-btn"
               onClick={() => load(true)}
-              disabled={loading}
+              disabled={busy}
             >
-              {loading ? "불러오는 중…" : "🔄 새로고침"}
+              {busy ? "불러오는 중…" : "🔄 새로고침"}
             </button>
           </div>
         </div>
@@ -135,18 +138,30 @@ export default function StockPage() {
         />
       )}
 
-      {prediction?.signal && (
+      {prediction?.signal ? (
         <SignalPanel
           signal={prediction.signal}
           levels={prediction.levels}
           valuation={prediction.valuation}
           region={prediction.region}
         />
+      ) : (
+        stock && predLoading && (
+          <div className="panel-loading">
+            🧭 종합 매수/매도 신호 분석 중… <small>(모델 학습 중이라 잠깐 걸려요 — 아래 차트·뉴스는 먼저 보세요)</small>
+          </div>
+        )
       )}
 
       <div className="grid">
         {stock && <PriceChart candles={stock.candles} region={stock.region} />}
-        {prediction && <PredictionPanel result={prediction} />}
+        {prediction ? (
+          <PredictionPanel result={prediction} />
+        ) : (
+          stock && predLoading && (
+            <div className="card panel-loading">📈 다음날 예측 학습 중…</div>
+          )
+        )}
       </div>
 
       {stock && (

@@ -1868,6 +1868,25 @@ footer {
   color: var(--muted);
 }
 
+/* 작은 인라인 로딩 (페이지 안 막음) */
+.loading-inline {
+  padding: 14px 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.panel-loading {
+  padding: 14px 16px;
+  margin: 12px 0;
+  border-radius: 10px;
+  background: #f3f5fb;
+  color: #4b5675;
+  font-size: 14px;
+}
+.panel-loading small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* 신호 맥락 설명 (ML 예측과 행동이 어긋날 때) */
 .sig-context {
   margin: 10px 0 0;
