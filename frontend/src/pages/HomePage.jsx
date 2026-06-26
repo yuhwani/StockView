@@ -14,7 +14,7 @@ export default function HomePage() {
     <div className="home-layout">
       <div className="home-main">
         <div className="home-hero">
-          <h2>📈 오늘, 어떤 종목을 살까요?</h2>
+          <h2>💰 우리 가족 부자되자</h2>
           <p>
             한국·미국 주식을 ML·기술적 지표·실시간 이벤트로 분석해
             <b> 매수·관망·매도 판단</b>을 도와드려요. 종목을 검색하거나 아래 목록에서 골라보세요.

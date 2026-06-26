@@ -1874,9 +1874,9 @@ footer {
   border-radius: 18px;
   padding: 30px 30px;
   margin: 6px 0 22px;
-  background: linear-gradient(125deg, #3b5bdb 0%, #5a63ea 48%, #7048e8 100%);
+  background: linear-gradient(125deg, #2b8a3e 0%, #2f9e44 46%, #099268 100%);
   color: #fff;
-  box-shadow: 0 12px 32px rgba(66, 99, 235, 0.28);
+  box-shadow: 0 12px 32px rgba(47, 158, 68, 0.3);
 }
 .home-hero h2 {
   margin: 0 0 8px;
