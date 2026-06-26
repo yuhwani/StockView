@@ -13,6 +13,7 @@ import StockPage from "./pages/StockPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import PortfolioPage from "./pages/PortfolioPage";
 import SettingsPage from "./pages/SettingsPage";
+import WatchlistPage from "./pages/WatchlistPage";
 import AccountsPage from "./pages/AccountsPage";
 import { AccountsProvider, useAccounts } from "./useAccounts";
 import { useWatchlist } from "./useWatchlist";
@@ -55,6 +56,9 @@ function GatedLayout() {
           </Link>
           <div className="header-acc">
             <span className="ha-name">📁 {active.name}</span>
+            <Link to="/watchlist" className="mini-btn ghost">
+              ⭐ 관심
+            </Link>
             <Link to="/portfolio" className="mini-btn ghost">
               손익
             </Link>
@@ -94,6 +98,7 @@ export default function App() {
             <Route path="/stock/:code" element={<StockPage />} />
             <Route path="/recommendations" element={<RecommendationsPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/watchlist" element={<WatchlistPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>

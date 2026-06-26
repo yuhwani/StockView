@@ -205,8 +205,11 @@ def prices(codes: str):
     for code in [c.strip() for c in codes.split(",") if c.strip()]:
         try:
             df = data.get_ohlcv(code)
+            price = float(df["Close"].iloc[-1])
+            chg = (price / float(df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else None
             out[code] = {
-                "price": float(df["Close"].iloc[-1]),
+                "price": price,
+                "change": chg,
                 "name": data.get_name(code),
                 "region": data.get_region(code),
                 "as_of": pd.to_datetime(df.index[-1]).strftime("%Y-%m-%d"),
